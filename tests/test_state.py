@@ -15,6 +15,7 @@ from outlast.state import (
     add_suggestion,
     complete_rescue,
     create_rescue,
+    delete_rescue,
     repairs_helped_by,
     save_disposal_guidance,
 )
@@ -110,11 +111,75 @@ def test_disposal_guidance_is_required_before_responsible_disposal(
     )
 
     save_disposal_guidance("fan-001", guidance)
-    complete_rescue("fan-001", RescueOutcome.RECYCLE_DISPOSE, [])
+    complete_rescue(
+        "fan-001",
+        RescueOutcome.RECYCLE_DISPOSE,
+        [],
+        disposal_location="Jurong Point — 1 Jurong West Central 2",
+    )
 
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == "fan-001")
     assert rescue["outcome"] == RescueOutcome.RECYCLE_DISPOSE.value
     assert rescue["solvers"] == []
+    assert rescue["disposal_location"] == "Jurong Point — 1 Jurong West Central 2"
+
+
+def test_disposal_evidence_awards_a_streak_adjusted_bonus(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    st.session_state.clear()
+    st.session_state.rescues = seeded_rescues()
+    st.session_state.player_stats = seeded_player_stats()
+    st.session_state.current_player = "Maya"
+    monkeypatch.setattr(db, "complete_rescue", lambda _rescue: False)
+    save_disposal_guidance(
+        "fan-001",
+        DisposalGuidance(
+            category="Electronic waste",
+            recommendation="Use an e-waste collection point.",
+            preparation_steps=["Unplug the item."],
+            safety_note="Do not use a blue recycling bin.",
+            official_resource_url="https://www.nea.gov.sg/",
+        ),
+    )
+
+    completion_award, _ = complete_rescue(
+        "fan-001",
+        RescueOutcome.RECYCLE_DISPOSE,
+        [],
+        b"evidence",
+        "image/jpeg",
+        "Jurong Point — 1 Jurong West Central 2",
+    )
+
+    rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == "fan-001")
+    assert completion_award[0] == 88
+    assert rescue["completion_xp_award"] == 88
+    assert rescue["disposal_evidence_xp_award"] == 33
+    assert rescue["after_image_bytes"] == b"evidence"
+
+
+def test_responsible_disposal_requires_an_nea_location(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    st.session_state.clear()
+    st.session_state.rescues = seeded_rescues()
+    st.session_state.player_stats = seeded_player_stats()
+    st.session_state.current_player = "Maya"
+    monkeypatch.setattr(db, "complete_rescue", lambda _rescue: False)
+    save_disposal_guidance(
+        "fan-001",
+        DisposalGuidance(
+            category="Electronic waste",
+            recommendation="Use an e-waste collection point.",
+            preparation_steps=["Unplug the item."],
+            safety_note="Do not use a blue recycling bin.",
+            official_resource_url="https://www.nea.gov.sg/",
+        ),
+    )
+
+    with pytest.raises(ValueError, match="NEA collection point"):
+        complete_rescue("fan-001", RescueOutcome.RECYCLE_DISPOSE, [])
 
 
 def test_disposal_guidance_stays_in_the_owner_session() -> None:
@@ -133,3 +198,14 @@ def test_disposal_guidance_stays_in_the_owner_session() -> None:
     save_disposal_guidance("fan-001", guidance)
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == "fan-001")
     assert rescue["disposal_guidance"] == guidance.model_dump(mode="json")
+
+
+def test_owner_can_delete_an_open_item() -> None:
+    st.session_state.clear()
+    st.session_state.rescues = seeded_rescues()
+    st.session_state.player_stats = seeded_player_stats()
+    st.session_state.current_player = "Maya"
+
+    delete_rescue("fan-001")
+
+    assert all(rescue["id"] != "fan-001" for rescue in st.session_state.rescues)
