@@ -10,7 +10,7 @@ from openai import OpenAI
 
 from repair_quest.models import Difficulty, DisposalGuidance, PrePostGuidance, RescueAnalysis
 
-SYSTEM_PROMPT = """You create safe, encouraging repair requests for a community repair game.
+SYSTEM_PROMPT = """You create safe, encouraging item assessments for a community repair game.
 Assess the user's description and the image together when an image is provided. Choose exactly
 one pre-post guidance value:
 - Worth a repair attempt: the item appears worth one safe repair attempt.
@@ -21,7 +21,7 @@ Never suggest passing on an unsafe, burnt, leaking, swollen, contaminated, or st
 dangerous item. When evidence is limited, be explicit in the reason and prefer a safe inspection
 or professional assessment over a confident diagnosis. Do not provide detailed electrical or
 hazardous repair instructions. Give only one safe first step appropriate to the guidance. Always
-generate a repair-request title because the owner may still choose to post. Estimate waste
+generate a concise item title because the owner may still choose to post. Estimate waste
 conservatively. Keep every text field concise and suitable for the app."""
 
 SINGAPORE_EWASTE_URL = (
@@ -65,7 +65,7 @@ def analyze_item(
     image_bytes: bytes | None,
     mime_type: str = "image/jpeg",
 ) -> RescueAnalysis:
-    """Generate a structured rescue with OpenAI, or a deterministic demo fallback."""
+    """Generate a structured item assessment with OpenAI, or a deterministic demo fallback."""
     if not ai_available():
         return fallback_analysis(description)
 

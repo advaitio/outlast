@@ -109,7 +109,7 @@ def update_rescue(rescue_id: str, **changes: object) -> None:
         if rescue["id"] == rescue_id:
             rescue.update(changes)
             return
-    raise KeyError(f"Rescue not found: {rescue_id}")
+    raise KeyError(f"Item not found: {rescue_id}")
 
 
 def _award_preview(player: str, base_xp: int) -> tuple[int, int, float]:
@@ -135,7 +135,7 @@ def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
         raise ValueError("A suggestion cannot be empty.")
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
     if rescue["status"] == RescueStatus.COMPLETED.value:
-        raise ValueError("Completed rescues cannot receive suggestions.")
+        raise ValueError("Resolved items cannot receive suggestions.")
     player = st.session_state.current_player
     awarded, streak, multiplier = _award_preview(player, CONTRIBUTOR_XP)
     contribution = {
@@ -156,7 +156,7 @@ def save_disposal_guidance(rescue_id: str, guidance: DisposalGuidance) -> None:
     if rescue["owner"] != st.session_state.current_player:
         raise PermissionError("Only the original poster can view this disposal guidance.")
     if rescue["status"] == RescueStatus.COMPLETED.value:
-        raise ValueError("This rescue has already been completed.")
+        raise ValueError("This item has already been resolved.")
     payload = guidance.model_dump(mode="json")
     update_rescue(rescue_id, disposal_guidance=payload)
 
@@ -170,9 +170,9 @@ def complete_rescue(
 ) -> tuple[tuple[int, int, float], dict[str, tuple[int, int, float]]]:
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
     if rescue["status"] == RescueStatus.COMPLETED.value:
-        raise ValueError("This rescue is already complete.")
+        raise ValueError("This item is already resolved.")
     if rescue["owner"] != st.session_state.current_player:
-        raise PermissionError("Only the original poster can complete this rescue.")
+        raise PermissionError("Only the original poster can resolve this item.")
     selected_solvers = list(dict.fromkeys(solvers))
     if outcome == RescueOutcome.RECYCLE_DISPOSE and selected_solvers:
         raise ValueError("A responsible disposal outcome cannot award solver XP.")
@@ -181,7 +181,7 @@ def complete_rescue(
     if any(player not in PLAYERS for player in selected_solvers):
         raise ValueError("Select solvers from the listed community members.")
     if outcome == RescueOutcome.RECYCLE_DISPOSE and not rescue.get("disposal_guidance"):
-        raise ValueError("Get disposal guidance in My rescues before completing this outcome.")
+        raise ValueError("Get disposal guidance in My items before resolving this outcome.")
     completion_award = _award_preview(rescue["owner"], COMPLETER_XP)
     solver_awards = {player: _award_preview(player, SOLVER_XP) for player in selected_solvers}
     changes = {

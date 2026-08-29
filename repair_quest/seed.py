@@ -74,7 +74,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="kettle-005",
-            title="Rescue the silent kettle",
+            title="Bring the silent kettle back to life",
             item_name="Electric kettle",
             description="No indicator light; base looks intact.",
             owner="Alex",

@@ -30,7 +30,7 @@ from repair_quest.state import (
     save_disposal_guidance,
 )
 
-st.set_page_config(page_title="Repair Quest", page_icon=":material/build:", layout="wide")
+st.set_page_config(page_title="Outlast", page_icon=":material/build:", layout="wide")
 
 
 def show_flash() -> None:
@@ -44,7 +44,7 @@ def rescue_card(rescue: dict) -> None:
         if rescue.get("image_bytes") or rescue.get("image_url"):
             st.image(
                 rescue.get("image_bytes") or rescue["image_url"],
-                caption=f"{rescue['item_name']} submitted for rescue",
+                caption=f"{rescue['item_name']} submitted as an item",
                 width="stretch",
             )
         st.subheader(f":material/build: {rescue['title']}")
@@ -123,11 +123,11 @@ def helped_rescue_card(rescue: dict, player: str) -> None:
 
 
 def discover_page() -> None:
-    st.title("Rescue board")
+    st.title("Item board")
     st.caption("Help someone give a broken item one informed repair attempt.")
     show_flash()
     rescues = [rescue for rescue in st.session_state.rescues if rescue["status"] == "Open"]
-    st.caption(f"{len(rescues)} open rescues")
+    st.caption(f"{len(rescues)} open items")
     for index in range(0, len(rescues), 2):
         left, right = st.columns(2)
         for column, rescue in zip((left, right), rescues[index : index + 2], strict=False):
@@ -160,9 +160,9 @@ def analysis_panel(analysis: RescueAnalysis) -> None:
 
 
 def rescue_page() -> None:
-    st.title("Start or complete a rescue")
+    st.title("Add or resolve an item")
     show_flash()
-    create_tab, complete_tab = st.tabs(["Start a rescue", "Complete a rescue"])
+    create_tab, complete_tab = st.tabs(["Add an item", "Resolve an item"])
     with create_tab:
         st.caption(
             "AI analysis is ready."
@@ -175,7 +175,7 @@ def rescue_page() -> None:
                 "What happened?", placeholder="My desk fan stopped working yesterday."
             )
             generated = st.form_submit_button(
-                "Generate rescue", type="primary", icon=":material/auto_awesome:"
+                "Assess item", type="primary", icon=":material/auto_awesome:"
             )
         if generated:
             if not description.strip():
@@ -199,7 +199,7 @@ def rescue_page() -> None:
             analysis = RescueAnalysis.model_validate(st.session_state.analysis)
             analysis_panel(analysis)
             if st.session_state.analysis_image_bytes:
-                st.caption("The uploaded photo will be attached to this rescue.")
+                st.caption("The uploaded photo will be attached to this item.")
             post_label = (
                 "Post repair request"
                 if analysis.pre_post_guidance == PrePostGuidance.POST_REPAIR
@@ -217,7 +217,7 @@ def rescue_page() -> None:
                     st.session_state.analysis_description = ""
                     st.session_state.analysis_image_bytes = None
                     st.session_state.analysis_image_mime = None
-                    st.session_state.flash = f"“{rescue['title']}” is now on the rescue board."
+                    st.session_state.flash = f"“{rescue['title']}” is now on the item board."
                     st.rerun()
                 except db.PersistenceError as exc:
                     st.error(str(exc))
@@ -230,11 +230,11 @@ def rescue_page() -> None:
             and rescue["owner"] == st.session_state.current_player
         ]
         if not owned_open_rescues:
-            st.info("Switch to the original poster to complete one of their open rescues.")
+            st.info("Switch to the original poster to resolve one of their open items.")
         else:
             labels = {rescue["id"]: rescue["title"] for rescue in owned_open_rescues}
             with st.form("complete-rescue"):
-                rescue_id = st.selectbox("Rescue", labels, format_func=labels.__getitem__)
+                rescue_id = st.selectbox("Item", labels, format_func=labels.__getitem__)
                 outcome = st.selectbox(
                     "Outcome", list(RescueOutcome), format_func=lambda value: value.value
                 )
@@ -252,9 +252,9 @@ def rescue_page() -> None:
                     key="after-photo",
                 )
                 if after_image:
-                    st.image(after_image, caption="Completed rescue", width="stretch")
+                    st.image(after_image, caption="Resolved item", width="stretch")
                 completed = st.form_submit_button(
-                    "Complete rescue", type="primary", icon=":material/check_circle:"
+                    "Resolve item", type="primary", icon=":material/check_circle:"
                 )
             if completed:
                 try:
@@ -272,7 +272,7 @@ def rescue_page() -> None:
                         st.session_state.flash = "Item marked as recycled or responsibly disposed."
                     else:
                         st.session_state.flash = (
-                            f"Rescue complete. You earned {completion_award[0]} XP for completing "
+                            f"Item resolved. You earned {completion_award[0]} XP for resolving "
                             "it. "
                             f"Solver XP awarded: {award_text}."
                         )
@@ -322,14 +322,14 @@ def impact_page() -> None:
             f"Solver: {SOLVER_XP} XP"
         )
     with history_col:
-        st.subheader("Completed rescues")
+        st.subheader("Resolved items")
         completed = [
             rescue
             for rescue in st.session_state.rescues
             if rescue["status"] == RescueStatus.COMPLETED.value
         ]
         if not completed:
-            st.info("Complete a rescue to see it here.")
+            st.info("Resolve an item to see it here.")
         for rescue in completed:
             solver_text = ", ".join(rescue["solvers"])
             if rescue["outcome"] == RescueOutcome.RECYCLE_DISPOSE.value:
@@ -395,12 +395,12 @@ def disposal_panel(rescue: dict) -> None:
             icon=":material/open_in_new:",
         )
         st.caption(
-            "To record this outcome, choose Recycle / dispose responsibly in Complete a rescue."
+            "To record this outcome, choose Recycle / dispose responsibly in Resolve an item."
         )
 
 
 def my_rescues_page() -> None:
-    st.title("My rescues")
+    st.title("My items")
     st.caption("Track repair requests you posted and repairs you helped solve.")
     show_flash()
     player = st.session_state.current_player
@@ -414,7 +414,7 @@ def my_rescues_page() -> None:
 
     with posted_tab:
         if not posted_rescues:
-            st.info("You have not posted a repair request yet. Start one from Rescue.")
+            st.info("You have not posted an item yet. Add one from Items.")
         else:
             active_count = sum(
                 rescue["status"] != RescueStatus.COMPLETED.value
@@ -459,9 +459,9 @@ def my_rescues_page() -> None:
 initialise_state()
 
 with st.sidebar:
-    st.title("Repair Quest")
+    st.title("Outlast")
     st.caption("Turn throwaways into community wins.")
-    page = st.radio("Go to", ["Discover", "Rescue", "My Rescues", "Impact"])
+    page = st.radio("Go to", ["Discover", "Items", "My Items", "Impact"])
     st.divider()
     st.session_state.current_player = st.selectbox(
         "Playing as", PLAYERS, index=PLAYERS.index(st.session_state.current_player)
@@ -486,9 +486,9 @@ with st.sidebar:
 
 if page == "Discover":
     discover_page()
-elif page == "Rescue":
+elif page == "Items":
     rescue_page()
-elif page == "My Rescues":
+elif page == "My Items":
     my_rescues_page()
 else:
     impact_page()

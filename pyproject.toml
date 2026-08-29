@@ -1,5 +1,5 @@
 [project]
-name = "repair-quest"
+name = "outlast"
 version = "0.1.0"
 description = "A social game for giving broken household items one community repair attempt."
 requires-python = ">=3.11"

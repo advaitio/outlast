@@ -1,5 +1,5 @@
--- Atomic persistence for Repair Quest. Run this after schema.sql.
--- It prevents partial writes across rescues, XP, and activity days.
+-- Atomic persistence for Outlast. Run this after schema.sql.
+-- It prevents partial writes across items, XP, and activity days.
 
 create or replace function public.add_rescue_suggestion(
   p_rescue_id uuid, p_player_id uuid, p_message text, p_xp_awarded integer,
@@ -9,7 +9,7 @@ returns void language plpgsql security definer set search_path = public as $$
 declare v_status text;
 begin
   select status into v_status from public.rescues where id = p_rescue_id for update;
-  if v_status is distinct from 'Open' then raise exception 'Rescue is not open'; end if;
+  if v_status is distinct from 'Open' then raise exception 'Item is not open'; end if;
   insert into public.rescue_contributions
     (rescue_id, player_id, contribution_type, message, xp_awarded, streak_multiplier)
   values (p_rescue_id, p_player_id, 'Suggestion', p_message, p_xp_awarded, p_streak_multiplier);
@@ -32,9 +32,9 @@ declare
 begin
   select owner_id, status into v_owner_id, v_status
   from public.rescues where id = p_rescue_id for update;
-  if v_status is distinct from 'Open' then raise exception 'Rescue is not open'; end if;
+  if v_status is distinct from 'Open' then raise exception 'Item is not open'; end if;
   if v_owner_id is distinct from p_completed_by_id then
-    raise exception 'Only the rescue owner can complete it';
+    raise exception 'Only the item owner can resolve it';
   end if;
   update public.rescues set status = 'Completed', outcome = p_outcome,
     completed_by_id = p_completed_by_id, completion_xp_awarded = p_completion_xp_awarded,

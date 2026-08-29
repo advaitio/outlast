@@ -180,7 +180,7 @@ def create_rescue(rescue: dict[str, Any]) -> bool:
         rescue["image_url"] = _public_image_url(client, image_path)
         return True
     except Exception as error:
-        raise PersistenceError("Could not save the new rescue to Supabase.") from error
+        raise PersistenceError("Could not save the new item to Supabase.") from error
 
 
 def add_contribution(rescue_id: str, player: str, message: str, xp: int, multiplier: float) -> bool:
@@ -240,4 +240,4 @@ def complete_rescue(rescue: dict[str, Any]) -> bool:
         rescue["after_image_url"] = _public_image_url(client, after_image_path)
         return True
     except Exception as error:
-        raise PersistenceError("Could not complete the rescue in Supabase.") from error
+        raise PersistenceError("Could not resolve the item in Supabase.") from error

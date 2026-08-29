@@ -1,3 +1,3 @@
-"""Repair Quest application package."""
+"""Outlast application package."""
 
 __version__ = "0.1.0"

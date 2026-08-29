@@ -1,4 +1,4 @@
--- Repair Quest schema: individual rescues, suggestion contributions, and XP.
+-- Outlast schema: individual items, suggestion contributions, and XP.
 -- Run in the Supabase SQL Editor when replacing prototype session state.
 
 create extension if not exists "pgcrypto";
