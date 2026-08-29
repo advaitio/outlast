@@ -15,6 +15,9 @@ def initialise_state() -> None:
         "current_player": PLAYERS[0],
         "team": TEAM,
         "analysis": None,
+        "analysis_description": "",
+        "analysis_image_bytes": None,
+        "analysis_image_mime": None,
         "flash": None,
     }
     for key, value in defaults.items():
@@ -22,7 +25,12 @@ def initialise_state() -> None:
             st.session_state[key] = value
 
 
-def create_quest(analysis: QuestAnalysis, description: str) -> dict:
+def create_quest(
+    analysis: QuestAnalysis,
+    description: str,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
+) -> dict:
     quest = {
         "id": str(uuid4())[:8],
         "title": analysis.quest_title,
@@ -41,6 +49,10 @@ def create_quest(analysis: QuestAnalysis, description: str) -> dict:
         "suggestions": [],
         "outcome": None,
         "points_awarded": 0,
+        "image_bytes": image_bytes,
+        "image_mime_type": image_mime_type,
+        "after_image_bytes": None,
+        "after_image_mime_type": None,
     }
     st.session_state.quests.insert(0, quest)
     return quest
@@ -54,7 +66,12 @@ def update_quest(quest_id: str, **changes: object) -> None:
     raise KeyError(f"Quest not found: {quest_id}")
 
 
-def complete_quest(quest_id: str, outcome: RescueAction) -> int:
+def complete_quest(
+    quest_id: str,
+    outcome: RescueAction,
+    after_image_bytes: bytes | None = None,
+    after_image_mime_type: str | None = None,
+) -> int:
     quest = next(quest for quest in st.session_state.quests if quest["id"] == quest_id)
     helpers = {name for name in quest.get("teammates", []) if name != quest["owner"]}
     if quest.get("helper") and quest["helper"] != quest["owner"]:
@@ -65,5 +82,7 @@ def complete_quest(quest_id: str, outcome: RescueAction) -> int:
         status="Completed",
         outcome=outcome.value,
         points_awarded=points,
+        after_image_bytes=after_image_bytes,
+        after_image_mime_type=after_image_mime_type,
     )
     return points

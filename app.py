@@ -6,7 +6,12 @@ from repair_quest.ai import ai_available, analyze_item
 from repair_quest.models import QuestAnalysis, RescueAction
 from repair_quest.scoring import impact_summary
 from repair_quest.seed import LEADERBOARD, PLAYERS
-from repair_quest.state import complete_quest, create_quest, initialise_state, update_quest
+from repair_quest.state import (
+    complete_quest,
+    create_quest,
+    initialise_state,
+    update_quest,
+)
 
 st.set_page_config(
     page_title="Repair Quest",
@@ -41,6 +46,10 @@ st.markdown(
            background:#edf5e7; color:#28543e; font-size:.72rem; font-weight:700;}
     .pill.orange {background:#fff0e7; color:#b44319;}
     .status {font-size:.78rem; font-weight:800; color:#2d6a4f;}
+    .suggestion-label {font-size:.72rem; font-weight:800; text-transform:uppercase;
+                       letter-spacing:.05em; margin-right:.3rem;}
+    .suggestion-label.ai {color:#6b46c1;}
+    .suggestion-label.person {color:#2d6a4f;}
     div[data-testid="stMetric"] {background:white; border:1px solid #dfe9d7; padding:.8rem 1rem;
                                 border-radius:16px; box-shadow:0 5px 16px rgba(24,58,44,.05);}
     .small-note {color:#65766e; font-size:.82rem;}
@@ -70,6 +79,20 @@ def flash_message() -> None:
 def quest_card(quest: dict) -> None:
     action_icon = {"Repair": "🔧", "Rehome": "🏠", "Salvage": "♻️"}.get(quest["action"], "🛠️")
     helper_line = f" · Helping: {quest['helper']}" if quest.get("helper") else ""
+    player = st.session_state.current_player
+    ai_suggestion = ""
+    if quest["owner"] == player:
+        ai_suggestion = (
+            '<p><span class="suggestion-label ai">'
+            "🤖 AI suggestion · Only visible to you</span>"
+            f"{quest['next_step']}</p>"
+        )
+    if quest.get("image_bytes"):
+        st.image(
+            quest["image_bytes"],
+            caption=f"{quest['item_name']} submitted for rescue",
+            use_container_width=True,
+        )
     st.markdown(
         f"""
         <div class="quest-card">
@@ -79,14 +102,13 @@ def quest_card(quest: dict) -> None:
           <span class="pill">{quest["difficulty"]}</span>
           <span class="pill">~{quest["estimated_waste_kg"]} kg</span>
           <p>{quest["description"]}</p>
-          <p><strong>First step:</strong> {quest["next_step"]}</p>
+          {ai_suggestion}
           <p class="small-note">Posted by {quest["owner"]} · Team {quest["team"]}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-    player = st.session_state.current_player
     col1, col2, col3 = st.columns(3)
     with col1:
         claim_disabled = quest["status"] != "Open" or quest["owner"] == player
@@ -125,11 +147,17 @@ def quest_card(quest: dict) -> None:
     with st.expander(
         f"Community help ({len(quest.get('suggestions', [])) + len(quest.get('offers', []))})"
     ):
-        for message in [*quest.get("offers", []), *quest.get("suggestions", [])]:
-            st.write(f"• {message}")
+        offers = quest.get("offers", [])
+        suggestions = quest.get("suggestions", [])
+        for message in offers:
+            st.markdown(f"🧩 **Person’s part offer** · {message}")
+        for message in suggestions:
+            st.markdown(f"👤 **Person suggestion** · {message}")
+        if not offers and not suggestions:
+            st.caption("No community suggestions yet.")
         with st.form(f"suggestion-{quest['id']}", clear_on_submit=True):
             suggestion = st.text_input(
-                "Leave a quick suggestion",
+                "Add a person suggestion",
                 placeholder="Try checking the cable...",
             )
             submitted = st.form_submit_button("Post suggestion")
@@ -174,13 +202,14 @@ def analysis_panel(analysis: QuestAnalysis) -> None:
     icon = {RescueAction.REPAIR: "🔧", RescueAction.REHOME: "🏠", RescueAction.SALVAGE: "♻️"}[
         analysis.recommended_action
     ]
+    st.caption("🤖 AI-generated quest suggestion")
     st.subheader(f"{icon} {analysis.quest_title}")
     cols = st.columns(3)
     cols[0].metric("Recommendation", analysis.recommended_action.value)
     cols[1].metric("Difficulty", analysis.difficulty.value)
     cols[2].metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
     st.write(analysis.reason)
-    st.info(f"**Safe first step:** {analysis.suggested_next_step}")
+    st.info(f"**🤖 AI suggestion — safe first step:** {analysis.suggested_next_step}")
 
 
 def rescue_page() -> None:
@@ -223,6 +252,10 @@ def rescue_page() -> None:
                                 image.type if image else "image/jpeg",
                             ).model_dump(mode="json")
                             st.session_state.analysis_description = description.strip()
+                            st.session_state.analysis_image_bytes = (
+                                image.getvalue() if image else None
+                            )
+                            st.session_state.analysis_image_mime = image.type if image else None
                         except Exception as exc:  # Streamlit should show a recoverable API error.
                             st.error(f"AI analysis failed: {exc}")
 
@@ -230,9 +263,19 @@ def rescue_page() -> None:
             st.divider()
             analysis = QuestAnalysis.model_validate(st.session_state.analysis)
             analysis_panel(analysis)
+            if st.session_state.analysis_image_bytes:
+                st.caption("The uploaded photo will be attached to this quest.")
             if st.button("Post to Rescue Board", type="primary"):
-                quest = create_quest(analysis, st.session_state.analysis_description)
+                quest = create_quest(
+                    analysis,
+                    st.session_state.analysis_description,
+                    st.session_state.analysis_image_bytes,
+                    st.session_state.analysis_image_mime,
+                )
                 st.session_state.analysis = None
+                st.session_state.analysis_description = ""
+                st.session_state.analysis_image_bytes = None
+                st.session_state.analysis_image_mime = None
                 st.session_state.flash = f"“{quest['title']}” is now live on the Rescue Board."
                 st.rerun()
 
@@ -266,13 +309,24 @@ def rescue_page() -> None:
                 }[value],
                 horizontal=True,
             )
-            st.file_uploader(
-                "After photo (optional for the prototype)",
+            after_image = st.file_uploader(
+                "After photo (optional)",
                 type=["jpg", "jpeg", "png", "webp"],
                 key="after-photo",
             )
+            if after_image:
+                st.image(
+                    after_image,
+                    caption="Completed rescue",
+                    use_container_width=True,
+                )
             if st.button("Complete rescue", type="primary"):
-                points = complete_quest(selected_id, outcome)
+                points = complete_quest(
+                    selected_id,
+                    outcome,
+                    after_image.getvalue() if after_image else None,
+                    after_image.type if after_image else None,
+                )
                 st.balloons()
                 st.session_state.flash = (
                     f"Rescue complete! Team COM3 earned {points} Impact Points."
@@ -333,6 +387,46 @@ def impact_page() -> None:
                 f"**{quest['item_name']}** — {quest['outcome']} · "
                 f"{quest['estimated_waste_kg']} kg avoided · +{quest['points_awarded']} pts"
             )
+            before_image = quest.get("image_bytes")
+            after_image = quest.get("after_image_bytes")
+            if before_image or after_image:
+                image_columns = st.columns(2)
+                if before_image:
+                    image_columns[0].image(before_image, caption="Before", use_container_width=True)
+                if after_image:
+                    image_columns[1].image(after_image, caption="After", use_container_width=True)
+
+
+def my_rescues_page() -> None:
+    hero(
+        "My Rescues",
+        "Track the items you have put up for community rescue.",
+        "Your quests",
+    )
+    flash_message()
+    player = st.session_state.current_player
+    quests = [quest for quest in st.session_state.quests if quest["owner"] == player]
+    st.caption(f"Showing quests posted by {player}")
+    if not quests:
+        st.info(
+            "You have not posted a rescue quest yet. "
+            "Open Rescue to analyze an item and put it on the board."
+        )
+        return
+
+    active_count = sum(quest["status"] != "Completed" for quest in quests)
+    completed_count = len(quests) - active_count
+    metric_columns = st.columns(3)
+    metric_columns[0].metric("Posted", len(quests))
+    metric_columns[1].metric("Active", active_count)
+    metric_columns[2].metric("Completed", completed_count)
+    st.divider()
+
+    for index in range(0, len(quests), 2):
+        columns = st.columns(2)
+        for column, quest in zip(columns, quests[index : index + 2], strict=False):
+            with column:
+                quest_card(quest)
 
 
 initialise_state()
@@ -340,7 +434,11 @@ initialise_state()
 with st.sidebar:
     st.markdown("## 🛠️ Repair Quest")
     st.caption("Turn throwaways into team wins.")
-    page = st.radio("Go to", ["Discover", "Rescue", "Impact"], label_visibility="collapsed")
+    page = st.radio(
+        "Go to",
+        ["Discover", "Rescue", "My Rescues", "Impact"],
+        label_visibility="collapsed",
+    )
     st.divider()
     st.session_state.current_player = st.selectbox(
         "Playing as",
@@ -359,5 +457,7 @@ if page == "Discover":
     discover_page()
 elif page == "Rescue":
     rescue_page()
+elif page == "My Rescues":
+    my_rescues_page()
 else:
     impact_page()
