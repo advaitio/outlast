@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import streamlit as st
 
+from repair_quest import db
 from repair_quest.ai import ai_available, analyze_item
 from repair_quest.models import RescueAction, RescueAnalysis, RescueStatus
 from repair_quest.scoring import (
@@ -58,7 +59,7 @@ def rescue_card(rescue: dict) -> None:
                         f"Suggestion posted. You earned {xp} XP with a {streak}-day streak."
                     )
                     st.rerun()
-                except ValueError as exc:
+                except (ValueError, db.PersistenceError) as exc:
                     st.warning(str(exc))
 
 
@@ -126,10 +127,13 @@ def rescue_page() -> None:
             analysis = RescueAnalysis.model_validate(st.session_state.analysis)
             analysis_panel(analysis)
             if st.button("Post to rescue board", type="primary", icon=":material/publish:"):
-                rescue = create_rescue(analysis, st.session_state.analysis_description)
-                st.session_state.analysis = None
-                st.session_state.flash = f"“{rescue['title']}” is now on the rescue board."
-                st.rerun()
+                try:
+                    rescue = create_rescue(analysis, st.session_state.analysis_description)
+                    st.session_state.analysis = None
+                    st.session_state.flash = f"“{rescue['title']}” is now on the rescue board."
+                    st.rerun()
+                except db.PersistenceError as exc:
+                    st.error(str(exc))
 
     with complete_tab:
         owned_open_rescues = [
@@ -170,7 +174,7 @@ def rescue_page() -> None:
                     )
                     st.balloons()
                     st.rerun()
-                except (PermissionError, ValueError) as exc:
+                except (PermissionError, ValueError, db.PersistenceError) as exc:
                     st.warning(str(exc))
 
 

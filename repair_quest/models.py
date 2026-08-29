@@ -62,3 +62,4 @@ class Rescue(BaseModel):
     completion_streak_multiplier: float | None = Field(default=None, ge=1, le=1.5)
     solvers: list[str] = Field(default_factory=list)
     solver_xp_awards: dict[str, int] = Field(default_factory=dict)
+    solver_streak_multipliers: dict[str, float] = Field(default_factory=dict)

@@ -1,8 +1,10 @@
+import pytest
 import streamlit as st
 
+from repair_quest import db
 from repair_quest.models import RescueAction
 from repair_quest.seed import seeded_player_stats, seeded_rescues
-from repair_quest.state import complete_rescue
+from repair_quest.state import add_suggestion, complete_rescue
 
 
 def test_completion_awards_xp_to_the_original_poster() -> None:
@@ -20,3 +22,24 @@ def test_completion_awards_xp_to_the_original_poster() -> None:
     assert st.session_state.player_stats["Maya"]["xp"] == initial_xp + 55
     assert rescue["completed_by"] == "Maya"
     assert rescue["completion_xp_award"] == 55
+    assert rescue["solver_streak_multipliers"]["Noah"] == 1.25
+
+
+def test_failed_persistence_does_not_change_session_state(monkeypatch: pytest.MonkeyPatch) -> None:
+    st.session_state.clear()
+    st.session_state.rescues = seeded_rescues()
+    st.session_state.player_stats = seeded_player_stats()
+    st.session_state.current_player = "Maya"
+    initial_xp = st.session_state.player_stats["Maya"]["xp"]
+    initial_contributions = list(st.session_state.rescues[0]["contributions"])
+
+    def fail_write(*_args: object, **_kwargs: object) -> bool:
+        raise db.PersistenceError("Supabase is unavailable.")
+
+    monkeypatch.setattr(db, "add_contribution", fail_write)
+
+    with pytest.raises(db.PersistenceError, match="Supabase is unavailable"):
+        add_suggestion("fan-001", "Check the cable.")
+
+    assert st.session_state.player_stats["Maya"]["xp"] == initial_xp
+    assert st.session_state.rescues[0]["contributions"] == initial_contributions
