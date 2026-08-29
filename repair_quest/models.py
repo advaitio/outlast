@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class RescueAction(StrEnum):
@@ -27,6 +27,8 @@ class ContributionType(StrEnum):
 
 
 class RescueAnalysis(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     item_name: str = Field(description="Short, specific name of the item")
     recommended_action: RescueAction
     reason: str = Field(description="One concise reason this action keeps the item in circulation")

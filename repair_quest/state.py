@@ -18,13 +18,21 @@ def initialise_state() -> None:
         "player_stats": remote[1] if remote and remote[0] else seeded_player_stats(),
         "current_player": PLAYERS[0],
         "analysis": None,
+        "analysis_description": "",
+        "analysis_image_bytes": None,
+        "analysis_image_mime": None,
         "flash": None,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
 
 
-def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
+def create_rescue(
+    analysis: RescueAnalysis,
+    description: str,
+    image_bytes: bytes | None = None,
+    image_mime_type: str | None = None,
+) -> dict:
     rescue = {
         "id": str(uuid4()),
         "title": analysis.rescue_title,
@@ -44,6 +52,10 @@ def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
         "solvers": [],
         "solver_xp_awards": {},
         "solver_streak_multipliers": {},
+        "image_bytes": image_bytes,
+        "image_mime_type": image_mime_type,
+        "after_image_bytes": None,
+        "after_image_mime_type": None,
     }
     db.create_rescue(rescue)
     st.session_state.rescues.insert(0, rescue)
@@ -98,7 +110,11 @@ def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
 
 
 def complete_rescue(
-    rescue_id: str, outcome: RescueAction, solvers: list[str]
+    rescue_id: str,
+    outcome: RescueAction,
+    solvers: list[str],
+    after_image_bytes: bytes | None = None,
+    after_image_mime_type: str | None = None,
 ) -> tuple[tuple[int, int, float], dict[str, tuple[int, int, float]]]:
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
     if rescue["status"] == RescueStatus.COMPLETED.value:
@@ -121,6 +137,8 @@ def complete_rescue(
         "solvers": selected_solvers,
         "solver_xp_awards": {player: award[0] for player, award in solver_awards.items()},
         "solver_streak_multipliers": {player: award[2] for player, award in solver_awards.items()},
+        "after_image_bytes": after_image_bytes,
+        "after_image_mime_type": after_image_mime_type,
     }
     db.complete_rescue({**rescue, **changes})
     _apply_award(rescue["owner"], completion_award[0])
