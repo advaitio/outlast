@@ -26,7 +26,7 @@ def initialise_state() -> None:
 
 def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
     rescue = {
-        "id": str(uuid4())[:8],
+        "id": str(uuid4()),
         "title": analysis.rescue_title,
         "item_name": analysis.item_name,
         "description": description,
