@@ -6,14 +6,16 @@ from uuid import uuid4
 import streamlit as st
 
 from repair_quest.models import ContributionType, RescueAction, RescueAnalysis, RescueStatus
+from repair_quest import db
 from repair_quest.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
 from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
 def initialise_state() -> None:
+    remote = db.load_data()
     defaults = {
-        "rescues": seeded_rescues(),
-        "player_stats": seeded_player_stats(),
+        "rescues": remote[0] if remote else seeded_rescues(),
+        "player_stats": remote[1] if remote else seeded_player_stats(),
         "current_player": PLAYERS[0],
         "analysis": None,
         "flash": None,
@@ -43,6 +45,7 @@ def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
         "solver_xp_awards": {},
     }
     st.session_state.rescues.insert(0, rescue)
+    db.create_rescue(rescue)
     return rescue
 
 
@@ -81,6 +84,7 @@ def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
         "xp_awarded": awarded,
     }
     update_rescue(rescue_id, contributions=[*rescue["contributions"], contribution])
+    db.add_contribution(rescue_id, player, message.strip(), awarded, multiplier)
     return awarded, streak, multiplier
 
 
@@ -109,4 +113,5 @@ def complete_rescue(
         solvers=selected_solvers,
         solver_xp_awards={player: award[0] for player, award in solver_awards.items()},
     )
+    db.complete_rescue(next(item for item in st.session_state.rescues if item["id"] == rescue_id))
     return completion_award, solver_awards

@@ -74,6 +74,10 @@ create index if not exists rescue_contributions_rescue_created_idx
 create index if not exists player_activity_days_player_date_idx
   on public.player_activity_days (player_id, activity_date desc);
 
+insert into public.players (display_name, xp)
+values ('Alex', 120), ('Maya', 240), ('Noah', 210), ('Priya', 180), ('Sam', 130)
+on conflict (display_name) do nothing;
+
 insert into storage.buckets (id, name, public)
 values ('rescue-images', 'rescue-images', true)
 on conflict (id) do nothing;
@@ -91,3 +95,11 @@ create policy "Prototype read rescues" on public.rescues for select using (true)
 create policy "Prototype read contributions" on public.rescue_contributions for select using (true);
 create policy "Prototype read solvers" on public.rescue_solvers for select using (true);
 create policy "Prototype read activity days" on public.player_activity_days for select using (true);
+create policy "Prototype insert players" on public.players for insert with check (true);
+create policy "Prototype update players" on public.players for update using (true) with check (true);
+create policy "Prototype insert rescues" on public.rescues for insert with check (true);
+create policy "Prototype update rescues" on public.rescues for update using (true) with check (true);
+create policy "Prototype insert contributions" on public.rescue_contributions for insert with check (true);
+create policy "Prototype insert solvers" on public.rescue_solvers for insert with check (true);
+create policy "Prototype update solvers" on public.rescue_solvers for update using (true) with check (true);
+create policy "Prototype insert activity days" on public.player_activity_days for insert with check (true);
