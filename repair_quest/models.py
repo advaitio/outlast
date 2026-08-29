@@ -7,13 +7,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class RescueAction(StrEnum):
     REPAIR = "Repair"
-    REHOME = "Rehome"
 
 
 class RescueOutcome(StrEnum):
     REPAIR = "Repair"
-    REHOME = "Rehome"
     RECYCLE_DISPOSE = "Recycle / dispose responsibly"
+
+
+class PrePostGuidance(StrEnum):
+    POST_REPAIR = "Worth a repair attempt"
+    PASS_ON = "Pass it on instead"
+    RESPONSIBLE_EXIT = "Repair may not be safe"
 
 
 class Difficulty(StrEnum):
@@ -35,8 +39,8 @@ class RescueAnalysis(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     item_name: str = Field(description="Short, specific name of the item")
-    recommended_action: RescueAction
-    reason: str = Field(description="One concise reason this action keeps the item in circulation")
+    pre_post_guidance: PrePostGuidance
+    reason: str = Field(description="One concise reason for the pre-post guidance")
     difficulty: Difficulty
     rescue_title: str = Field(description="Short, upbeat rescue title")
     suggested_next_step: str = Field(description="One safe, simple next step")

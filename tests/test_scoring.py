@@ -39,7 +39,7 @@ def test_impact_summary_counts_completed_rescues_only() -> None:
             "estimated_waste_kg": 2,
             "outcome": "Recycle / dispose responsibly",
         },
-        {"status": "Open", "estimated_waste_kg": 50, "outcome": "Rehome"},
+        {"status": "Open", "estimated_waste_kg": 50, "outcome": None},
     ]
     assert impact_summary(rescues) == {
         "items_rescued": 1,

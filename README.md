@@ -1,15 +1,16 @@
 # Repair Quest
 
-Repair Quest is a small social rescue game built for the LifeHack hackathon. Before throwing away or replacing an item, a user posts it as a rescue opportunity and asks their community to help **repair or rehome** it.
+Repair Quest is a small social repair game built for the LifeHack hackathon. Before replacing or throwing away a broken item, a user gives it one informed repair attempt with help from their community.
 
 The MVP is intentionally focused on one measurable behaviour:
 
-> Give an unwanted item one community rescue attempt before replacing it.
+> Give a broken item one informed community repair attempt before replacing it.
 
 ## What is already working
 
-- **Discover:** an eight-rescue board where community members share useful suggestions.
-- **Rescue:** photo and description input, AI-assisted Repair/Rehome generation, posting, and owner-led completion.
+- **Discover:** an eight-request repair board where community members share useful suggestions.
+- **Rescue:** photo and description input, private AI pre-post guidance, repair-request posting, and owner-led completion.
+- **Alternative guidance:** AI may privately suggest passing on an already-working item or responsibly handling one that appears unsafe or impractical to repair.
 - **Responsible exit:** private, rescue-specific recycle/dispose guidance when an owner has to let an item go.
 - **Impact:** shared waste impact, responsible-exit tracking, and an individual XP leaderboard.
 - **Demo mode:** fake users and a deterministic AI fallback, so the full flow works without credentials.

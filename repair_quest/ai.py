@@ -8,13 +8,21 @@ from typing import Any
 
 from openai import OpenAI
 
-from repair_quest.models import Difficulty, DisposalGuidance, RescueAction, RescueAnalysis
+from repair_quest.models import Difficulty, DisposalGuidance, PrePostGuidance, RescueAnalysis
 
-SYSTEM_PROMPT = """You create safe, encouraging rescues for a community reuse game.
-Choose the best way to keep the item in circulation: Repair or Rehome.
-Do not provide detailed electrical or hazardous repair instructions. Give only one safe first step.
-Estimate waste conservatively. Keep every text field concise and suitable for a public
-rescue card."""
+SYSTEM_PROMPT = """You create safe, encouraging repair requests for a community repair game.
+Assess the user's description and the image together when an image is provided. Choose exactly
+one pre-post guidance value:
+- Worth a repair attempt: the item appears worth one safe repair attempt.
+- Pass it on instead: the item appears safe and usable already, so it does not need repair.
+- Repair may not be safe: visible or described damage makes a community repair attempt unsafe
+  or clearly impractical.
+Never suggest passing on an unsafe, burnt, leaking, swollen, contaminated, or structurally
+dangerous item. When evidence is limited, be explicit in the reason and prefer a safe inspection
+or professional assessment over a confident diagnosis. Do not provide detailed electrical or
+hazardous repair instructions. Give only one safe first step appropriate to the guidance. Always
+generate a repair-request title because the owner may still choose to post. Estimate waste
+conservatively. Keep every text field concise and suitable for the app."""
 
 SINGAPORE_EWASTE_URL = (
     "https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/"
@@ -67,7 +75,7 @@ def analyze_item(
             {
                 "type": "input_image",
                 "image_url": _data_url(image_bytes, mime_type),
-                "detail": "low",
+                "detail": "high",
             }
         )
 
@@ -133,12 +141,26 @@ def disposal_guidance(
 def fallback_analysis(description: str) -> RescueAnalysis:
     """Keep the demo usable without credentials or network access."""
     text = description.lower()
-    if any(word in text for word in ("works", "working", "unused", "no longer need", "too small")):
-        action = RescueAction.REHOME
-        reason = "It appears usable and can serve someone else without requiring a replacement."
-        step = "Clean it, confirm it works, and share its condition with the community."
+    unsafe_words = (
+        "burnt",
+        "burned",
+        "swollen",
+        "leaking battery",
+        "exposed wire",
+        "beyond repair",
+        "structural crack",
+    )
+    working_words = ("works", "working", "unused", "no longer need", "too small")
+    if any(word in text for word in unsafe_words):
+        guidance = PrePostGuidance.RESPONSIBLE_EXIT
+        reason = "The description indicates damage that may make a repair attempt unsafe."
+        step = "Stop using the item and check the appropriate responsible disposal route."
+    elif any(word in text for word in working_words):
+        guidance = PrePostGuidance.PASS_ON
+        reason = "The item appears usable already, so it may not need a repair request."
+        step = "Confirm it works safely, clean it, and describe its condition honestly."
     else:
-        action = RescueAction.REPAIR
+        guidance = PrePostGuidance.POST_REPAIR
         reason = "The description suggests a simple fault may be worth checking before replacement."
         step = "Check the power source, visible connections, and user manual first."
 
@@ -146,7 +168,7 @@ def fallback_analysis(description: str) -> RescueAnalysis:
     item_name = " ".join(words[:3]).title() if words else "Household item"
     return RescueAnalysis(
         item_name=item_name,
-        recommended_action=action,
+        pre_post_guidance=guidance,
         reason=reason,
         difficulty=Difficulty.EASY,
         rescue_title=f"Give this {item_name.lower()} a second chance",

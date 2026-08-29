@@ -5,7 +5,13 @@ import streamlit as st
 from repair_quest import db
 from repair_quest.ai import ai_available, analyze_item
 from repair_quest.ai import disposal_guidance as generate_disposal_guidance
-from repair_quest.models import DisposalGuidance, RescueAnalysis, RescueOutcome, RescueStatus
+from repair_quest.models import (
+    DisposalGuidance,
+    PrePostGuidance,
+    RescueAnalysis,
+    RescueOutcome,
+    RescueStatus,
+)
 from repair_quest.scoring import (
     COMPLETER_XP,
     CONTRIBUTOR_XP,
@@ -33,10 +39,6 @@ def show_flash() -> None:
 
 
 def rescue_card(rescue: dict) -> None:
-    icons = {
-        "Repair": ":material/build:",
-        "Rehome": ":material/home:",
-    }
     with st.container(border=True):
         if rescue.get("image_bytes") or rescue.get("image_url"):
             st.image(
@@ -44,11 +46,11 @@ def rescue_card(rescue: dict) -> None:
                 caption=f"{rescue['item_name']} submitted for rescue",
                 width="stretch",
             )
-        st.subheader(f"{icons.get(rescue['action'], ':material/build:')} {rescue['title']}")
+        st.subheader(f":material/build: {rescue['title']}")
         st.caption(f"Posted by {rescue['owner']} · {rescue['status']}")
         st.write(rescue["description"])
         st.caption(
-            f"{rescue['action']} · {rescue['difficulty']} · about "
+            f"{rescue['difficulty']} repair · about "
             f"{rescue['estimated_waste_kg']} kg of waste potentially avoided"
         )
         if rescue["owner"] == st.session_state.current_player:
@@ -85,14 +87,9 @@ def rescue_card(rescue: dict) -> None:
 
 def discover_page() -> None:
     st.title("Rescue board")
-    st.caption("Find an item to help save with one useful suggestion.")
+    st.caption("Help someone give a broken item one informed repair attempt.")
     show_flash()
-    selected_action = st.segmented_control(
-        "Filter rescues", ["All", "Repair", "Rehome"], default="All"
-    )
     rescues = [rescue for rescue in st.session_state.rescues if rescue["status"] == "Open"]
-    if selected_action and selected_action != "All":
-        rescues = [rescue for rescue in rescues if rescue["action"] == selected_action]
     st.caption(f"{len(rescues)} open rescues")
     for index in range(0, len(rescues), 2):
         left, right = st.columns(2)
@@ -102,17 +99,27 @@ def discover_page() -> None:
 
 
 def analysis_panel(analysis: RescueAnalysis) -> None:
-    st.caption("🤖 AI-generated rescue suggestion")
-    st.subheader(analysis.rescue_title)
-    left, middle, right = st.columns(3)
-    left.metric("Recommended path", analysis.recommended_action.value)
-    middle.metric("Difficulty", analysis.difficulty.value)
-    right.metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
-    st.write(analysis.reason)
-    st.info(
-        f"AI suggestion · Safe first step: {analysis.suggested_next_step}",
-        icon=":material/auto_awesome:",
-    )
+    st.caption(":material/auto_awesome: Private AI assessment before you post")
+    with st.container(border=True):
+        st.subheader(analysis.rescue_title)
+        assessment, facts = st.columns([2, 1], vertical_alignment="top")
+        assessment_text = (
+            f"**{analysis.pre_post_guidance.value}**\n\n"
+            f"{analysis.reason}\n\n"
+            f"**Recommended next action:** {analysis.suggested_next_step}"
+        )
+        with assessment:
+            if analysis.pre_post_guidance == PrePostGuidance.POST_REPAIR:
+                st.info(assessment_text, icon=":material/build:")
+            else:
+                st.warning(assessment_text, icon=":material/health_and_safety:")
+                st.caption(
+                    "This assessment is advisory. You can still post a repair request "
+                    "if you disagree."
+                )
+        with facts:
+            st.metric("Difficulty", analysis.difficulty.value)
+            st.metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
 
 
 def rescue_page() -> None:
@@ -137,7 +144,7 @@ def rescue_page() -> None:
             if not description.strip():
                 st.warning("Add a short description first.")
             else:
-                with st.spinner("Finding the best rescue path…"):
+                with st.spinner("Assessing whether a repair attempt makes sense…"):
                     try:
                         st.session_state.analysis = analyze_item(
                             description.strip(),
@@ -156,7 +163,12 @@ def rescue_page() -> None:
             analysis_panel(analysis)
             if st.session_state.analysis_image_bytes:
                 st.caption("The uploaded photo will be attached to this rescue.")
-            if st.button("Post to rescue board", type="primary", icon=":material/publish:"):
+            post_label = (
+                "Post repair request"
+                if analysis.pre_post_guidance == PrePostGuidance.POST_REPAIR
+                else "Post repair request anyway"
+            )
+            if st.button(post_label, type="primary", icon=":material/publish:"):
                 try:
                     rescue = create_rescue(
                         analysis,
@@ -193,8 +205,8 @@ def rescue_page() -> None:
                     "Who helped solve it?",
                     PLAYERS,
                     help=(
-                        "Choose everyone the original poster wants to recognise for a Repair or "
-                        "Rehome. Leave this blank for Recycle / dispose responsibly."
+                        "Choose everyone the original poster wants to recognise for the repair. "
+                        "Leave this blank for Recycle / dispose responsibly."
                     ),
                 )
                 after_image = st.file_uploader(
@@ -314,7 +326,7 @@ def disposal_panel(rescue: dict) -> None:
         key=panel_key,
         on_change="rerun",
     ):
-        st.caption("Private to you · Guidance for when repair or rehoming is not viable.")
+        st.caption("Private to you · Guidance for when repair is not viable.")
         guidance_data = rescue.get("disposal_guidance")
         if not guidance_data:
             if st.button(

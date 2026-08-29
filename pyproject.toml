@@ -1,7 +1,7 @@
 [project]
 name = "repair-quest"
 version = "0.1.0"
-description = "A social rescue game for repairing, rehoming, and salvaging unwanted items."
+description = "A social game for giving broken household items one community repair attempt."
 requires-python = ">=3.11"
 dependencies = [
   "streamlit>=1.49,<2",

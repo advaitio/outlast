@@ -19,14 +19,14 @@ create table if not exists public.rescues (
   title text not null,
   item_name text not null,
   description text not null,
-  recommended_action text not null check (recommended_action in ('Repair', 'Rehome')),
+  recommended_action text not null check (recommended_action = 'Repair'),
   difficulty text not null check (difficulty in ('Easy', 'Medium', 'Hard')),
   estimated_waste_kg numeric(8,2) not null default 0 check (estimated_waste_kg >= 0),
   suggested_next_step text not null,
   image_path text,
   after_image_path text,
   status text not null default 'Open' check (status in ('Open', 'Completed')),
-  outcome text check (outcome in ('Repair', 'Rehome', 'Recycle / dispose responsibly')),
+  outcome text check (outcome in ('Repair', 'Recycle / dispose responsibly')),
   completed_by_id uuid references public.players(id),
   completion_xp_awarded integer not null default 0 check (completion_xp_awarded >= 0),
   completion_streak_multiplier numeric(3,2) check (completion_streak_multiplier in (1.00, 1.10, 1.25, 1.50)),
@@ -43,15 +43,17 @@ create table if not exists public.rescues (
   )
 );
 
--- Migrate prototype data that used the former public "Salvage" option.
-update public.rescues set recommended_action = 'Repair' where recommended_action = 'Salvage';
-update public.rescues set outcome = 'Recycle / dispose responsibly' where outcome = 'Salvage';
+-- Migrate prototype data from the former multi-path rescue flow.
+update public.rescues
+set recommended_action = 'Repair'
+where recommended_action in ('Salvage', 'Rehome');
+update public.rescues set outcome = null where outcome in ('Salvage', 'Rehome');
 alter table public.rescues drop constraint if exists rescues_recommended_action_check;
 alter table public.rescues add constraint rescues_recommended_action_check
-  check (recommended_action in ('Repair', 'Rehome'));
+  check (recommended_action = 'Repair');
 alter table public.rescues drop constraint if exists rescues_outcome_check;
 alter table public.rescues add constraint rescues_outcome_check
-  check (outcome in ('Repair', 'Rehome', 'Recycle / dispose responsibly'));
+  check (outcome in ('Repair', 'Recycle / dispose responsibly'));
 
 -- Contribution type is intentionally restricted to suggestions for this release.
 create table if not exists public.rescue_contributions (

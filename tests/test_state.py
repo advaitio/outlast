@@ -5,6 +5,7 @@ from repair_quest import db
 from repair_quest.models import (
     Difficulty,
     DisposalGuidance,
+    PrePostGuidance,
     RescueAction,
     RescueAnalysis,
     RescueOutcome,
@@ -71,7 +72,7 @@ def test_photos_survive_create_and_completion_flow(monkeypatch: pytest.MonkeyPat
     monkeypatch.setattr(db, "complete_rescue", lambda _rescue: False)
     analysis = RescueAnalysis(
         item_name="Desk fan",
-        recommended_action=RescueAction.REPAIR,
+        pre_post_guidance=PrePostGuidance.POST_REPAIR,
         reason="It may have a simple fault.",
         difficulty=Difficulty.EASY,
         rescue_title="Rescue this desk fan",
@@ -83,6 +84,7 @@ def test_photos_survive_create_and_completion_flow(monkeypatch: pytest.MonkeyPat
     complete_rescue(rescue["id"], RescueOutcome.REPAIR, ["Maya"], b"after", "image/png")
 
     assert rescue["image_bytes"] == b"before"
+    assert rescue["action"] == RescueAction.REPAIR.value
     assert rescue["status"] == "Completed"
     assert rescue["after_image_bytes"] == b"after"
     assert rescue["after_image_mime_type"] == "image/png"

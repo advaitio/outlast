@@ -9,6 +9,7 @@ from repair_quest import db
 from repair_quest.models import (
     ContributionType,
     DisposalGuidance,
+    RescueAction,
     RescueAnalysis,
     RescueOutcome,
     RescueStatus,
@@ -38,6 +39,14 @@ def initialise_state() -> None:
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
+    if st.session_state.analysis:
+        try:
+            RescueAnalysis.model_validate(st.session_state.analysis)
+        except ValueError:
+            st.session_state.analysis = None
+            st.session_state.analysis_description = ""
+            st.session_state.analysis_image_bytes = None
+            st.session_state.analysis_image_mime = None
 
 
 def refresh_from_database() -> None:
@@ -61,7 +70,7 @@ def create_rescue(
         "item_name": analysis.item_name,
         "description": description,
         "owner": st.session_state.current_player,
-        "action": analysis.recommended_action.value,
+        "action": RescueAction.REPAIR.value,
         "difficulty": analysis.difficulty.value,
         "estimated_waste_kg": analysis.estimated_waste_kg,
         "next_step": analysis.suggested_next_step,
