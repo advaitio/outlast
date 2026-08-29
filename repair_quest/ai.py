@@ -8,13 +8,13 @@ from typing import Any
 
 from openai import OpenAI
 
-from repair_quest.models import Difficulty, QuestAnalysis, RescueAction
+from repair_quest.models import Difficulty, RescueAction, RescueAnalysis
 
-SYSTEM_PROMPT = """You create safe, encouraging Rescue Quests for a community reuse game.
+SYSTEM_PROMPT = """You create safe, encouraging rescues for a community reuse game.
 Choose the best way to keep the item in circulation: Repair, Rehome, or Salvage.
 Do not provide detailed electrical or hazardous repair instructions. Give only one safe first step.
 Estimate waste conservatively. Keep every text field concise and suitable for a public
-quest card."""
+rescue card."""
 
 
 def _secret(name: str, default: str = "") -> str:
@@ -43,8 +43,8 @@ def analyze_item(
     description: str,
     image_bytes: bytes | None,
     mime_type: str = "image/jpeg",
-) -> QuestAnalysis:
-    """Generate a structured quest with OpenAI, or a deterministic demo fallback."""
+) -> RescueAnalysis:
+    """Generate a structured rescue with OpenAI, or a deterministic demo fallback."""
     if not ai_available():
         return fallback_analysis(description)
 
@@ -67,17 +67,17 @@ def analyze_item(
         text={
             "format": {
                 "type": "json_schema",
-                "name": "quest_analysis",
+                "name": "rescue_analysis",
                 "strict": True,
-                "schema": QuestAnalysis.model_json_schema(),
+                "schema": RescueAnalysis.model_json_schema(),
             }
         },
         store=False,
     )
-    return QuestAnalysis.model_validate(json.loads(response.output_text))
+    return RescueAnalysis.model_validate(json.loads(response.output_text))
 
 
-def fallback_analysis(description: str) -> QuestAnalysis:
+def fallback_analysis(description: str) -> RescueAnalysis:
     """Keep the demo usable without credentials or network access."""
     text = description.lower()
     if any(word in text for word in ("works", "working", "unused", "no longer need", "too small")):
@@ -95,12 +95,12 @@ def fallback_analysis(description: str) -> QuestAnalysis:
 
     words = [word.strip(".,!?()[]") for word in description.split() if len(word) > 2]
     item_name = " ".join(words[:3]).title() if words else "Household item"
-    return QuestAnalysis(
+    return RescueAnalysis(
         item_name=item_name,
         recommended_action=action,
         reason=reason,
         difficulty=Difficulty.EASY if action != RescueAction.SALVAGE else Difficulty.MEDIUM,
-        quest_title=f"Give this {item_name.lower()} a second chance",
+        rescue_title=f"Give this {item_name.lower()} a second chance",
         suggested_next_step=step,
         estimated_waste_kg=1.0,
     )

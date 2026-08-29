@@ -1,12 +1,16 @@
-from repair_quest.models import Difficulty, Quest, RescueAction
+from __future__ import annotations
+
+from datetime import date, timedelta
+
+from repair_quest.models import Contribution, ContributionType, Difficulty, Rescue, RescueAction
 
 PLAYERS = ["Alex", "Maya", "Noah", "Priya", "Sam"]
-TEAM = "COM3"
 
 
-def seeded_quests() -> list[dict]:
-    quests = [
-        Quest(
+def seeded_rescues() -> list[dict]:
+    today = date.today().isoformat()
+    rescues = [
+        Rescue(
             id="fan-001",
             title="Bring this desk fan back to life",
             item_name="Desk fan",
@@ -16,10 +20,17 @@ def seeded_quests() -> list[dict]:
             difficulty=Difficulty.EASY,
             estimated_waste_kg=1.5,
             next_step="Check the plug, cable, and power switch before opening it.",
-            teammates=["Noah"],
-            suggestions=["Try a different socket first."],
+            contributions=[
+                Contribution(
+                    player="Noah",
+                    message="Try a different socket first.",
+                    contribution_type=ContributionType.SUGGESTION,
+                    created_at=today,
+                    xp_awarded=20,
+                )
+            ],
         ),
-        Quest(
+        Rescue(
             id="chair-002",
             title="Give a wobbly chair another semester",
             item_name="Wooden chair",
@@ -29,10 +40,8 @@ def seeded_quests() -> list[dict]:
             difficulty=Difficulty.MEDIUM,
             estimated_waste_kg=6.2,
             next_step="Inspect the loose joint and check whether wood glue and a clamp will help.",
-            helper="Sam",
-            status="Claimed",
         ),
-        Quest(
+        Rescue(
             id="lamp-003",
             title="Find this study lamp a new desk",
             item_name="LED study lamp",
@@ -43,7 +52,7 @@ def seeded_quests() -> list[dict]:
             estimated_waste_kg=0.8,
             next_step="Test it, wipe it down, and offer it to the community.",
         ),
-        Quest(
+        Rescue(
             id="keyboard-004",
             title="Harvest useful keys from a tired keyboard",
             item_name="Mechanical keyboard",
@@ -53,9 +62,17 @@ def seeded_quests() -> list[dict]:
             difficulty=Difficulty.MEDIUM,
             estimated_waste_kg=0.9,
             next_step="Disconnect it and sort reusable keycaps, switches, and cable.",
-            offers=["Maya offered a switch puller"],
+            contributions=[
+                Contribution(
+                    player="Maya",
+                    message="A switch puller will make the reusable parts easier to remove.",
+                    contribution_type=ContributionType.SUGGESTION,
+                    created_at=today,
+                    xp_awarded=20,
+                )
+            ],
         ),
-        Quest(
+        Rescue(
             id="kettle-005",
             title="Rescue the silent kettle",
             item_name="Electric kettle",
@@ -66,7 +83,7 @@ def seeded_quests() -> list[dict]:
             estimated_waste_kg=1.1,
             next_step="Try another outlet and inspect the detachable base for debris.",
         ),
-        Quest(
+        Rescue(
             id="shelf-006",
             title="Rehome a sturdy bookshelf",
             item_name="Small bookshelf",
@@ -77,7 +94,7 @@ def seeded_quests() -> list[dict]:
             estimated_waste_kg=12.0,
             next_step="Measure it and post the dimensions for potential adopters.",
         ),
-        Quest(
+        Rescue(
             id="headphones-007",
             title="Fix the one-sided headphones",
             item_name="Wired headphones",
@@ -88,7 +105,7 @@ def seeded_quests() -> list[dict]:
             estimated_waste_kg=0.3,
             next_step="Test the cable position to locate the likely break.",
         ),
-        Quest(
+        Rescue(
             id="toaster-008",
             title="Save the toaster's useful parts",
             item_name="Two-slice toaster",
@@ -100,11 +117,21 @@ def seeded_quests() -> list[dict]:
             next_step="Keep it unplugged and identify externally removable parts only.",
         ),
     ]
-    return [quest.model_dump(mode="json") for quest in quests]
+    return [rescue.model_dump(mode="json") for rescue in rescues]
 
 
-LEADERBOARD = [
-    {"team": "COM3", "items": 12, "waste_kg": 7.4, "points": 620},
-    {"team": "Circular Squad", "items": 10, "waste_kg": 6.8, "points": 570},
-    {"team": "Second Chance", "items": 8, "waste_kg": 5.1, "points": 490},
-]
+def seeded_player_stats() -> dict[str, dict[str, int | list[str]]]:
+    today = date.today()
+    return {
+        "Maya": {
+            "xp": 240,
+            "activity_dates": [(today - timedelta(days=day)).isoformat() for day in range(3)],
+        },
+        "Noah": {
+            "xp": 210,
+            "activity_dates": [(today - timedelta(days=day)).isoformat() for day in range(7)],
+        },
+        "Priya": {"xp": 180, "activity_dates": [today.isoformat()]},
+        "Sam": {"xp": 130, "activity_dates": []},
+        "Alex": {"xp": 120, "activity_dates": []},
+    }
