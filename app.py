@@ -5,6 +5,7 @@ import streamlit as st
 from outlast import db
 from outlast.ai import ai_available, analyze_item
 from outlast.ai import disposal_guidance as generate_disposal_guidance
+from outlast.ewaste import CATEGORY_LABELS, DATASET_URL, find_ewaste_points
 from outlast.models import DisposalGuidance, RescueAnalysis, RescueOutcome, RescueStatus
 from outlast.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, streak_length
 from outlast.seed import PLAYERS
@@ -165,6 +166,45 @@ def disposal_guidance_panel(rescue: dict) -> None:
                 st.write(f"• {step}")
             st.caption(guidance.safety_note)
             st.link_button("Open official guidance", guidance.official_resource_url)
+            st.markdown("#### Official e-waste collection points")
+            st.caption(
+                "Filter the official NEA dataset by what the collection point accepts. "
+                "These results are not ranked by distance."
+            )
+            category = st.selectbox(
+                "What does the collection point need to accept?",
+                CATEGORY_LABELS,
+                key=f"ewaste-category-{rescue['id']}",
+            )
+            search = st.text_input(
+                "Search by neighbourhood, building, street, or postal code",
+                key=f"ewaste-search-{rescue['id']}",
+                placeholder="For example: Jurong or 648886",
+            )
+            points = find_ewaste_points(category, search)
+            if not points:
+                st.info("No matching collection points found. Try a broader search or filter.")
+            for point in points:
+                with st.container(border=True):
+                    st.write(f"**{point.display_name}**")
+                    st.caption(point.address)
+                    st.caption(f"Accepts: {point.accepted_items}")
+                    maps, official = st.columns(2)
+                    maps.link_button(
+                        "View on OpenStreetMap",
+                        point.openstreetmap_url,
+                        icon=":material/location_on:",
+                        use_container_width=True,
+                    )
+                    if point.official_url:
+                        official.link_button(
+                            "Programme details",
+                            point.official_url,
+                            icon=":material/open_in_new:",
+                            use_container_width=True,
+                        )
+            st.caption("Location data: NEA via data.gov.sg. Verify before visiting.")
+            st.link_button("View the official dataset", DATASET_URL)
 
 
 def owner_actions(rescue: dict) -> None:
