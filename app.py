@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from outlast import db
@@ -31,6 +33,65 @@ from outlast.state import (
 )
 
 st.set_page_config(page_title="Outlast", page_icon=":material/build:", layout="wide")
+
+st.markdown(
+    """
+    <style>
+    .leaderboard-card {
+        display: flex;
+        align-items: center;
+        gap: 0.85rem;
+        width: 100%;
+        padding: 0.85rem 1rem;
+        margin-bottom: 0.65rem;
+        border: 1px solid #dbe8d5;
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 3px 10px rgba(24, 58, 44, 0.06);
+    }
+    .leaderboard-card.leader {
+        border-color: #f2c66d;
+        background: linear-gradient(100deg, #fffaf0 0%, #ffffff 70%);
+    }
+    .leaderboard-rank {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 0 0 2.35rem;
+        height: 2.35rem;
+        border-radius: 10px;
+        background: #edf5e7;
+        color: #28543e;
+        font-size: 0.9rem;
+        font-weight: 800;
+    }
+    .leaderboard-card.leader .leaderboard-rank {background: #fff0c7; color: #8b5b00;}
+    .leaderboard-person {min-width: 0; flex: 1;}
+    .leaderboard-name {font-size: 1rem; font-weight: 750; color: #183a2c;}
+    .leaderboard-you {
+        margin-left: 0.4rem;
+        padding: 0.1rem 0.42rem;
+        border-radius: 999px;
+        background: #fff0e7;
+        color: #b44319;
+        font-size: 0.65rem;
+        font-weight: 800;
+        text-transform: uppercase;
+    }
+    .leaderboard-streak {margin-top: 0.12rem; color: #6a7d73; font-size: 0.78rem;}
+    .leaderboard-score {text-align: right; color: #183a2c; font-size: 1.05rem; font-weight: 800;}
+    .leaderboard-score span {
+        display: block;
+        color: #7b8a82;
+        font-size: 0.66rem;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
 
 
 def show_flash() -> None:
@@ -316,7 +377,28 @@ def impact_page() -> None:
         )
         for rank, (player, stats) in enumerate(board, start=1):
             streak = streak_length(stats["activity_dates"])
-            st.write(f"**#{rank} {player}** — {stats['xp']} XP · {streak}-day streak")
+            rank_label = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
+            current_player_badge = (
+                '<span class="leaderboard-you">You</span>'
+                if player == st.session_state.current_player
+                else ""
+            )
+            leader_class = " leader" if rank == 1 else ""
+            st.markdown(
+                f"""
+                <div class="leaderboard-card{leader_class}">
+                    <div class="leaderboard-rank">{rank_label}</div>
+                    <div class="leaderboard-person">
+                        <div class="leaderboard-name">
+                            {escape(player)}{current_player_badge}
+                        </div>
+                        <div class="leaderboard-streak">🔥 {streak}-day streak</div>
+                    </div>
+                    <div class="leaderboard-score">{stats['xp']}<span>XP</span></div>
+                </div>
+                """,
+                unsafe_allow_html=True,
+            )
         st.caption(
             f"Suggestion: {CONTRIBUTOR_XP} XP · Completing: {COMPLETER_XP} XP · "
             f"Solver: {SOLVER_XP} XP"
