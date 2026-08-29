@@ -1,0 +1,110 @@
+from repair_quest.models import Difficulty, Quest, RescueAction
+
+PLAYERS = ["Alex", "Maya", "Noah", "Priya", "Sam"]
+TEAM = "COM3"
+
+
+def seeded_quests() -> list[dict]:
+    quests = [
+        Quest(
+            id="fan-001",
+            title="Bring this desk fan back to life",
+            item_name="Desk fan",
+            description="It stopped spinning yesterday and may have a loose cable.",
+            owner="Maya",
+            action=RescueAction.REPAIR,
+            difficulty=Difficulty.EASY,
+            estimated_waste_kg=1.5,
+            next_step="Check the plug, cable, and power switch before opening it.",
+            teammates=["Noah"],
+            suggestions=["Try a different socket first."],
+        ),
+        Quest(
+            id="chair-002",
+            title="Give a wobbly chair another semester",
+            item_name="Wooden chair",
+            description="The frame is sound, but one leg keeps loosening.",
+            owner="Priya",
+            action=RescueAction.REPAIR,
+            difficulty=Difficulty.MEDIUM,
+            estimated_waste_kg=6.2,
+            next_step="Inspect the loose joint and check whether wood glue and a clamp will help.",
+            helper="Sam",
+            status="Claimed",
+        ),
+        Quest(
+            id="lamp-003",
+            title="Find this study lamp a new desk",
+            item_name="LED study lamp",
+            description="Works perfectly; no longer needed after moving rooms.",
+            owner="Noah",
+            action=RescueAction.REHOME,
+            difficulty=Difficulty.EASY,
+            estimated_waste_kg=0.8,
+            next_step="Test it, wipe it down, and offer it to the community.",
+        ),
+        Quest(
+            id="keyboard-004",
+            title="Harvest useful keys from a tired keyboard",
+            item_name="Mechanical keyboard",
+            description="The circuit board is damaged, but many switches and keycaps are usable.",
+            owner="Sam",
+            action=RescueAction.SALVAGE,
+            difficulty=Difficulty.MEDIUM,
+            estimated_waste_kg=0.9,
+            next_step="Disconnect it and sort reusable keycaps, switches, and cable.",
+            offers=["Maya offered a switch puller"],
+        ),
+        Quest(
+            id="kettle-005",
+            title="Rescue the silent kettle",
+            item_name="Electric kettle",
+            description="No indicator light; base looks intact.",
+            owner="Alex",
+            action=RescueAction.REPAIR,
+            difficulty=Difficulty.MEDIUM,
+            estimated_waste_kg=1.1,
+            next_step="Try another outlet and inspect the detachable base for debris.",
+        ),
+        Quest(
+            id="shelf-006",
+            title="Rehome a sturdy bookshelf",
+            item_name="Small bookshelf",
+            description="Good condition, but it does not fit the new room.",
+            owner="Maya",
+            action=RescueAction.REHOME,
+            difficulty=Difficulty.EASY,
+            estimated_waste_kg=12.0,
+            next_step="Measure it and post the dimensions for potential adopters.",
+        ),
+        Quest(
+            id="headphones-007",
+            title="Fix the one-sided headphones",
+            item_name="Wired headphones",
+            description="Audio cuts out on the left when the cable bends.",
+            owner="Priya",
+            action=RescueAction.REPAIR,
+            difficulty=Difficulty.HARD,
+            estimated_waste_kg=0.3,
+            next_step="Test the cable position to locate the likely break.",
+        ),
+        Quest(
+            id="toaster-008",
+            title="Save the toaster's useful parts",
+            item_name="Two-slice toaster",
+            description="Heating element is broken; casing and lever are usable.",
+            owner="Noah",
+            action=RescueAction.SALVAGE,
+            difficulty=Difficulty.HARD,
+            estimated_waste_kg=1.4,
+            next_step="Keep it unplugged and identify externally removable parts only.",
+        ),
+    ]
+    return [quest.model_dump(mode="json") for quest in quests]
+
+
+LEADERBOARD = [
+    {"team": "COM3", "items": 12, "waste_kg": 7.4, "points": 620},
+    {"team": "Circular Squad", "items": 10, "waste_kg": 6.8, "points": 570},
+    {"team": "Second Chance", "items": 8, "waste_kg": 5.1, "points": 490},
+]
