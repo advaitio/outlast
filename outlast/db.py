@@ -137,6 +137,8 @@ def load_data() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]] | None
                     "solvers": solver_by_rescue.get(row["id"], []),
                     "solver_xp_awards": awards_by_rescue.get(row["id"], {}),
                     "solver_streak_multipliers": multipliers_by_rescue.get(row["id"], {}),
+                    "disposal_location": row.get("disposal_location"),
+                    "disposal_evidence_xp_award": row.get("disposal_evidence_xp_awarded", 0),
                     "image_url": _public_image_url(client, row.get("image_path")),
                     "after_image_url": _public_image_url(client, row.get("after_image_path")),
                 }
@@ -248,6 +250,8 @@ def complete_rescue(rescue: dict[str, Any]) -> bool:
                 "p_solvers": solvers,
                 "p_activity_date": date.today().isoformat(),
                 "p_after_image_path": after_image_path,
+                "p_disposal_location": rescue.get("disposal_location"),
+                "p_disposal_evidence_xp_awarded": rescue.get("disposal_evidence_xp_award", 0),
             },
         ).execute()
         rescue["after_image_path"] = after_image_path

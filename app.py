@@ -7,7 +7,13 @@ from outlast.ai import ai_available, analyze_item
 from outlast.ai import disposal_guidance as generate_disposal_guidance
 from outlast.ewaste import CATEGORY_LABELS, DATASET_URL, find_ewaste_points
 from outlast.models import DisposalGuidance, RescueAnalysis, RescueOutcome, RescueStatus
-from outlast.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, streak_length
+from outlast.scoring import (
+    COMPLETER_XP,
+    CONTRIBUTOR_XP,
+    DISPOSAL_EVIDENCE_XP,
+    SOLVER_XP,
+    streak_length,
+)
 from outlast.seed import PLAYERS
 from outlast.state import (
     add_suggestion,
@@ -23,6 +29,10 @@ from outlast.state import (
 st.set_page_config(page_title="Outlast", page_icon=":material/build:", layout="wide")
 
 PAGES = ("Dashboard", "Listings", "Report")
+NEA_RECYCLING_GUIDANCE_URL = (
+    "https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/"
+    "waste-minimisation-and-recycling"
+)
 
 
 def show_flash() -> None:
@@ -165,7 +175,7 @@ def disposal_guidance_panel(rescue: dict) -> None:
             for step in guidance.preparation_steps:
                 st.write(f"• {step}")
             st.caption(guidance.safety_note)
-            st.link_button("Open official guidance", guidance.official_resource_url)
+            st.link_button("Open official guidance", NEA_RECYCLING_GUIDANCE_URL)
             st.markdown("#### Official e-waste collection points")
             st.caption(
                 "Filter the official NEA dataset by what the collection point accepts. "
@@ -210,30 +220,69 @@ def disposal_guidance_panel(rescue: dict) -> None:
 def owner_actions(rescue: dict) -> None:
     if rescue["status"] == RescueStatus.COMPLETED.value:
         st.success(f"Resolved as: {rescue['outcome']}")
+        if rescue.get("disposal_location"):
+            st.write(f"Collection point used: {rescue['disposal_location']}")
         if rescue.get("solvers"):
             st.write(f"Recognised solvers: {', '.join(rescue['solvers'])}")
         after_image = image_source(rescue, after=True)
         if after_image:
-            st.image(after_image, caption="After", width="stretch")
+            caption = (
+                "Collection-point evidence"
+                if rescue["outcome"] == RescueOutcome.RECYCLE_DISPOSE.value
+                else "After"
+            )
+            st.image(after_image, caption=caption, width="stretch")
         return
 
     st.markdown("#### Manage your listing")
     disposal_guidance_panel(rescue)
-    with st.form(f"resolve-{rescue['id']}"):
-        outcome = st.selectbox(
-            "Outcome", list(RescueOutcome), format_func=lambda value: value.value
+    outcome = st.selectbox(
+        "Outcome",
+        list(RescueOutcome),
+        format_func=lambda value: value.value,
+        key=f"outcome-{rescue['id']}",
+    )
+    disposal_location: str | None = None
+    if outcome == RescueOutcome.RECYCLE_DISPOSE:
+        st.caption("Choose the exact NEA collection point used to close this item responsibly.")
+        search = st.text_input(
+            "Search collection point",
+            key=f"resolve-ewaste-search-{rescue['id']}",
+            placeholder="Neighbourhood, building, street, or postal code",
         )
+        points = find_ewaste_points("All e-waste points", search, limit=25)
+        if points:
+            selected_point = st.selectbox(
+                "Exact NEA collection point",
+                points,
+                format_func=lambda point: f"{point.display_name} — {point.address}",
+                key=f"resolve-ewaste-location-{rescue['id']}",
+            )
+            disposal_location = f"{selected_point.display_name} — {selected_point.address}"
+        else:
+            st.warning("No collection point matches that search. Try a broader search.")
+        st.caption(
+            f"Optional evidence photo earns +{DISPOSAL_EVIDENCE_XP} XP before "
+            "your streak multiplier."
+        )
+        solvers: list[str] = []
+        after_image = st.file_uploader(
+            "Collection-point evidence (optional)",
+            type=["jpg", "jpeg", "png", "webp"],
+            key=f"after-{rescue['id']}",
+        )
+    else:
         solvers = st.multiselect(
             "Who helped solve it?",
             [player for player in PLAYERS if player != rescue["owner"]],
-            help="Required for a repaired item; leave blank for responsible disposal.",
+            help="Select the community members who solved this item.",
         )
         after_image = st.file_uploader(
             "After photo (optional)",
             type=["jpg", "jpeg", "png", "webp"],
             key=f"after-{rescue['id']}",
         )
-        submitted = st.form_submit_button("Resolve item", type="primary")
+    submitted = st.button("Resolve item", type="primary", key=f"resolve-{rescue['id']}")
     if submitted:
         try:
             completion_award, solver_awards = complete_rescue(
@@ -242,18 +291,25 @@ def owner_actions(rescue: dict) -> None:
                 solvers,
                 after_image.getvalue() if after_image else None,
                 after_image.type if after_image else None,
+                disposal_location,
             )
             solver_text = ", ".join(
                 f"{player} +{award[0]} XP" for player, award in solver_awards.items()
             )
-            st.session_state.flash = (
-                "Item marked as responsibly disposed."
-                if outcome == RescueOutcome.RECYCLE_DISPOSE
-                else (
+            if outcome == RescueOutcome.RECYCLE_DISPOSE:
+                evidence_bonus = (
+                    round(DISPOSAL_EVIDENCE_XP * completion_award[2]) if after_image else 0
+                )
+                st.session_state.flash = (
+                    f"Item marked as responsibly disposed at {disposal_location}. "
+                    f"You earned {completion_award[0]} XP."
+                    + (f" Evidence bonus: +{evidence_bonus} XP." if evidence_bonus else "")
+                )
+            else:
+                st.session_state.flash = (
                     f"Item resolved. You earned {completion_award[0]} XP. "
                     f"Solver awards: {solver_text}."
                 )
-            )
             st.rerun()
         except (PermissionError, ValueError, db.PersistenceError) as exc:
             st.warning(str(exc))

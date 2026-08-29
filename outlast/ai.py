@@ -26,7 +26,7 @@ conservatively. Keep every text field concise and suitable for the app."""
 
 SINGAPORE_EWASTE_URL = (
     "https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/"
-    "e-waste-management/where-to-recycle-e-waste"
+    "waste-minimisation-and-recycling"
 )
 DISPOSAL_SYSTEM_PROMPT = """You provide concise, safety-first, owner-only disposal guidance
 for Singapore.
@@ -223,7 +223,7 @@ def fallback_disposal_guidance(item_name: str, description: str) -> DisposalGuid
             "Separate batteries, electronics, or sharp parts for their proper collection route.",
         ],
         safety_note="When unsure, do not place mixed-material items in a blue recycling bin.",
-        official_resource_url="https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/recycling",
+        official_resource_url=SINGAPORE_EWASTE_URL,
     )
 
 

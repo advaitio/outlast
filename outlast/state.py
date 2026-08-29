@@ -14,7 +14,13 @@ from outlast.models import (
     RescueOutcome,
     RescueStatus,
 )
-from outlast.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
+from outlast.scoring import (
+    COMPLETER_XP,
+    CONTRIBUTOR_XP,
+    DISPOSAL_EVIDENCE_XP,
+    SOLVER_XP,
+    award_for,
+)
 from outlast.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
@@ -94,6 +100,8 @@ def create_rescue(
         "solver_xp_awards": {},
         "solver_streak_multipliers": {},
         "disposal_guidance": None,
+        "disposal_location": None,
+        "disposal_evidence_xp_award": 0,
         "image_bytes": image_bytes,
         "image_mime_type": image_mime_type,
         "after_image_bytes": None,
@@ -180,6 +188,7 @@ def complete_rescue(
     solvers: list[str],
     after_image_bytes: bytes | None = None,
     after_image_mime_type: str | None = None,
+    disposal_location: str | None = None,
 ) -> tuple[tuple[int, int, float], dict[str, tuple[int, int, float]]]:
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
     if rescue["status"] == RescueStatus.COMPLETED.value:
@@ -195,7 +204,19 @@ def complete_rescue(
         raise ValueError("Select solvers from the listed community members.")
     if outcome == RescueOutcome.RECYCLE_DISPOSE and not rescue.get("disposal_guidance"):
         raise ValueError("Get disposal guidance in My items before resolving this outcome.")
-    completion_award = _award_preview(rescue["owner"], COMPLETER_XP)
+    if outcome == RescueOutcome.RECYCLE_DISPOSE and not disposal_location:
+        raise ValueError("Select the NEA collection point you used.")
+    has_disposal_evidence = (
+        outcome == RescueOutcome.RECYCLE_DISPOSE and after_image_bytes is not None
+    )
+    disposal_evidence_award = (
+        _award_preview(rescue["owner"], DISPOSAL_EVIDENCE_XP)
+        if has_disposal_evidence
+        else (0, 0, 1.0)
+    )
+    completion_award = _award_preview(
+        rescue["owner"], COMPLETER_XP + (DISPOSAL_EVIDENCE_XP if has_disposal_evidence else 0)
+    )
     solver_awards = {player: _award_preview(player, SOLVER_XP) for player in selected_solvers}
     changes = {
         "status": RescueStatus.COMPLETED.value,
@@ -206,6 +227,8 @@ def complete_rescue(
         "solvers": selected_solvers,
         "solver_xp_awards": {player: award[0] for player, award in solver_awards.items()},
         "solver_streak_multipliers": {player: award[2] for player, award in solver_awards.items()},
+        "disposal_location": disposal_location,
+        "disposal_evidence_xp_award": disposal_evidence_award[0],
         "after_image_bytes": after_image_bytes,
         "after_image_mime_type": after_image_mime_type,
     }

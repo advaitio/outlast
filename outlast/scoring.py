@@ -5,6 +5,7 @@ from datetime import date, timedelta
 CONTRIBUTOR_XP = 20
 COMPLETER_XP = 50
 SOLVER_XP = 100
+DISPOSAL_EVIDENCE_XP = 30
 
 
 def streak_length(activity_dates: list[str], today: date | None = None) -> int:
