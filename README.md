@@ -8,9 +8,9 @@ The MVP is intentionally focused on one measurable behaviour:
 
 ## What is already working
 
-- **Discover:** an eight-quest Rescue Board with Claim, Join, Offer Part, and suggestions.
-- **Rescue:** photo and description input, AI-assisted structured quest generation, posting, and completion.
-- **Impact:** outcome scoring, collaboration bonuses, individual metrics, progress, and leaderboard.
+- **Discover:** an eight-rescue board where community members share useful suggestions.
+- **Rescue:** photo and description input, AI-assisted rescue generation, posting, and owner-led completion.
+- **Impact:** shared waste impact plus an individual XP leaderboard and streak multipliers.
 - **Demo mode:** fake users and a deterministic AI fallback, so the full flow works without credentials.
 - **Cloud-ready setup:** OpenAI secrets template, Supabase schema, Streamlit theme, tests, linting, and GitHub Actions.
 
@@ -31,26 +31,27 @@ The app works immediately in demo mode. To enable real photo analysis:
 cp .streamlit/secrets.toml.example .streamlit/secrets.toml
 ```
 
-Then add an `OPENAI_API_KEY` to `.streamlit/secrets.toml`. The default model is `gpt-5.6-luna`; it accepts image input and supports structured outputs through the Responses API, which keeps quest data predictable. See the [official model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna) and [Responses API reference](https://developers.openai.com/api/reference/resources/responses/methods/create).
+Then add an `OPENAI_API_KEY` to `.streamlit/secrets.toml`. The default model is `gpt-5.6-luna`; it accepts image input and supports structured outputs through the Responses API, which keeps rescue data predictable. See the [official model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna) and [Responses API reference](https://developers.openai.com/api/reference/resources/responses/methods/create).
 
 Never commit `.streamlit/secrets.toml` or `.env`.
 
 ## Recommended demo story
 
-1. On **Rescue**, describe a desk fan that stopped spinning and generate a quest.
-2. Post the generated quest to the shared board.
-3. Change the demo player in the sidebar, then Claim or Join the fan quest on **Discover**.
-4. Return to **Rescue**, complete it as Repaired, and show the point reward.
-5. Open **Impact** to show updated community progress and individual leaderboard.
+1. On **Rescue**, describe a desk fan that stopped spinning and generate a rescue.
+2. Post the rescue to the shared board.
+3. Change the demo player in the sidebar and post a useful suggestion on **Discover**.
+4. Switch to the original poster, complete the rescue as Repaired, and select one or more solvers.
+5. Open **Impact** to show community impact, individual XP, and streaks.
 
 ## Scoring
 
-| Outcome | Base points |
+| Activity | Base XP |
 | --- | ---: |
-| Repair | 100 |
-| Rehome | 80 |
-| Salvage | 60 |
-| Each teammate who helped | +30 |
+| Post a useful suggestion | 20 |
+| Complete a rescue as its original poster | 50 |
+| Selected as a solver | 100 |
+
+Each award is multiplied by the recipient's active calendar-day streak: 1–2 days is **1.0×**, 3–6 is **1.1×**, 7–13 is **1.25×**, and 14+ is **1.5×**. Missing a full day resets the active multiplier to 1.0×.
 
 Impact values are deliberately presented as estimates. They are suitable for a prototype and should not be marketed as audited environmental measurements.
 
@@ -71,9 +72,9 @@ The current build uses session state so the social loop is demoable now. `supaba
 ```text
 app.py                       Three-screen Streamlit application
 repair_quest/ai.py           OpenAI analysis and offline fallback
-repair_quest/models.py       Structured quest data models
-repair_quest/scoring.py      Transparent impact point rules
-repair_quest/seed.py         Fake users, quests, and leaderboard
+repair_quest/models.py       Structured rescue and contribution models
+repair_quest/scoring.py      XP streak and community impact rules
+repair_quest/seed.py         Fake users, rescues, and individual XP data
 repair_quest/state.py        Prototype session-state actions
 supabase/schema.sql          Shared database and image-store setup
 tests/                       Fast unit tests
@@ -82,11 +83,10 @@ tests/                       Fast unit tests
 
 ## Highest-priority next steps
 
-1. Give each teammate one feature area using the ownership guide in `CONTRIBUTING.md`.
-2. Add the OpenAI project key and test with 5–10 real item photos; tune only the prompt if results are unclear.
-3. Create a Supabase project, run `supabase/schema.sql`, and replace session-state writes with a small repository layer.
-4. Add image upload to the `quest-images` bucket and save its returned path on each quest.
+1. Add the OpenAI project key and test with 5–10 real item photos; tune only the prompt if results are unclear.
+2. Create a Supabase project, run `supabase/schema.sql`, and replace session-state writes with a small repository layer.
+3. Add image upload to the `rescue-images` bucket and save its returned path on each rescue.
+4. Move streak and XP awarding into a transactional database function before enabling real accounts.
 5. Polish the single fan rescue demo, deploy to Streamlit Community Cloud, and rehearse a 2–3 minute pitch.
 
 Do not add real authentication, payments, geolocation, chat, or a repair-guide database until the core demo is polished.
-

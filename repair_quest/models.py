@@ -17,17 +17,34 @@ class Difficulty(StrEnum):
     HARD = "Hard"
 
 
-class QuestAnalysis(BaseModel):
+class RescueStatus(StrEnum):
+    OPEN = "Open"
+    COMPLETED = "Completed"
+
+
+class ContributionType(StrEnum):
+    SUGGESTION = "Suggestion"
+
+
+class RescueAnalysis(BaseModel):
     item_name: str = Field(description="Short, specific name of the item")
     recommended_action: RescueAction
     reason: str = Field(description="One concise reason this action keeps the item in circulation")
     difficulty: Difficulty
-    quest_title: str = Field(description="Short, upbeat rescue quest title")
+    rescue_title: str = Field(description="Short, upbeat rescue title")
     suggested_next_step: str = Field(description="One safe, simple next step")
     estimated_waste_kg: float = Field(ge=0.05, le=100)
 
 
-class Quest(BaseModel):
+class Contribution(BaseModel):
+    player: str
+    message: str = Field(min_length=1, max_length=280)
+    contribution_type: ContributionType = ContributionType.SUGGESTION
+    created_at: str
+    xp_awarded: int = Field(ge=0)
+
+
+class Rescue(BaseModel):
     id: str
     title: str
     item_name: str
@@ -37,10 +54,11 @@ class Quest(BaseModel):
     difficulty: Difficulty
     estimated_waste_kg: float
     next_step: str
-    status: str = "Open"
-    helper: str | None = None
-    teammates: list[str] = Field(default_factory=list)
-    offers: list[str] = Field(default_factory=list)
-    suggestions: list[str] = Field(default_factory=list)
+    status: RescueStatus = RescueStatus.OPEN
+    contributions: list[Contribution] = Field(default_factory=list)
     outcome: RescueAction | None = None
-    points_awarded: int = 0
+    completed_by: str | None = None
+    completion_xp_award: int = Field(default=0, ge=0)
+    completion_streak_multiplier: float | None = Field(default=None, ge=1, le=1.5)
+    solvers: list[str] = Field(default_factory=list)
+    solver_xp_awards: dict[str, int] = Field(default_factory=dict)

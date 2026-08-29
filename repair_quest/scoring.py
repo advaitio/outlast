@@ -1,30 +1,51 @@
-from repair_quest.models import RescueAction
+from __future__ import annotations
 
-OUTCOME_POINTS = {
-    RescueAction.REPAIR: 100,
-    RescueAction.REHOME: 80,
-    RescueAction.SALVAGE: 60,
-}
-HELP_BONUS = 30
+from datetime import date, timedelta
 
-
-def calculate_points(outcome: RescueAction, helper_count: int = 0) -> int:
-    """Return outcome points plus one collaboration bonus per helper."""
-    return OUTCOME_POINTS[outcome] + max(0, helper_count) * HELP_BONUS
+CONTRIBUTOR_XP = 20
+COMPLETER_XP = 50
+SOLVER_XP = 100
 
 
-def impact_summary(quests: list[dict]) -> dict[str, float | int]:
-    completed = [quest for quest in quests if quest.get("status") == "Completed"]
+def streak_length(activity_dates: list[str], today: date | None = None) -> int:
+    """Return the active consecutive-day streak, including today when active."""
+    today = today or date.today()
+    active_days = {date.fromisoformat(day) for day in activity_dates}
+    length = 0
+    day = today
+    while day in active_days:
+        length += 1
+        day -= timedelta(days=1)
+    return length
+
+
+def streak_multiplier(streak: int) -> float:
+    if streak >= 14:
+        return 1.5
+    if streak >= 7:
+        return 1.25
+    if streak >= 3:
+        return 1.1
+    return 1.0
+
+
+def award_for(
+    base_xp: int, activity_dates: list[str], today: date | None = None
+) -> tuple[int, int, float]:
+    """Calculate one XP award after the activity day has been recorded."""
+    streak = streak_length(activity_dates, today)
+    multiplier = streak_multiplier(streak)
+    return round(base_xp * multiplier), streak, multiplier
+
+
+def impact_summary(rescues: list[dict]) -> dict[str, float | int]:
+    completed = [rescue for rescue in rescues if rescue.get("status") == "Completed"]
     return {
         "items_rescued": len(completed),
         "waste_avoided_kg": round(
-            sum(float(quest.get("estimated_waste_kg", 0)) for quest in completed), 1
+            sum(float(rescue.get("estimated_waste_kg", 0)) for rescue in completed), 1
         ),
         "purchases_avoided": sum(
-            1
-            for quest in completed
-            if quest.get("outcome")
-            in {RescueAction.REPAIR, RescueAction.REHOME, "Repair", "Rehome"}
+            1 for rescue in completed if rescue.get("outcome") in {"Repair", "Rehome"}
         ),
-        "points": sum(int(quest.get("points_awarded", 0)) for quest in completed),
     }
