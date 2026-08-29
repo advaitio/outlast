@@ -3,355 +3,238 @@ from __future__ import annotations
 import streamlit as st
 
 from repair_quest.ai import ai_available, analyze_item
-from repair_quest.models import QuestAnalysis, RescueAction
-from repair_quest.scoring import impact_summary
-from repair_quest.seed import LEADERBOARD, PLAYERS
-from repair_quest.state import complete_quest, create_quest, initialise_state, update_quest
-
-st.set_page_config(
-    page_title="Repair Quest",
-    page_icon="🛠️",
-    layout="wide",
-    initial_sidebar_state="expanded",
+from repair_quest.models import RescueAction, RescueAnalysis, RescueStatus
+from repair_quest.scoring import (
+    CONTRIBUTOR_XP,
+    SOLVER_XP,
+    impact_summary,
+    streak_length,
+    streak_multiplier,
 )
+from repair_quest.seed import PLAYERS
+from repair_quest.state import add_suggestion, complete_rescue, create_rescue, initialise_state
 
-st.markdown(
-    """
-    <style>
-    .block-container {max-width: 1180px; padding-top: 2rem; padding-bottom: 4rem;}
-    [data-testid="stSidebar"] {border-right: 1px solid #dce8d3;}
-    .hero {
-        padding: 1.4rem 1.6rem; border-radius: 20px;
-        background: linear-gradient(120deg, #173f2c, #2d6a4f);
-        color: white; margin-bottom: 1.5rem;
-        box-shadow: 0 12px 30px rgba(24, 58, 44, .12);
-    }
-    .hero h1 {margin: 0 0 .25rem; color: white; font-size: 2.35rem;}
-    .hero p {margin: 0; color: #eaf4e2; font-size: 1.05rem;}
-    .eyebrow {text-transform: uppercase; letter-spacing: .12em; font-size: .72rem;
-              font-weight: 800; color: #ffb38f;}
-    .quest-card {
-        background: white; border: 1px solid #dfe9d7; border-radius: 16px;
-        padding: 1rem 1.1rem .8rem; margin-bottom: .45rem;
-        min-height: 220px; box-shadow: 0 5px 16px rgba(24, 58, 44, .06);
-    }
-    .quest-card h3 {margin: .4rem 0 .25rem; font-size: 1.15rem; color: #183a2c;}
-    .quest-card p {font-size: .92rem; color: #4f665c; margin: .3rem 0;}
-    .pill {display:inline-block; padding:.2rem .55rem; margin-right:.25rem; border-radius:999px;
-           background:#edf5e7; color:#28543e; font-size:.72rem; font-weight:700;}
-    .pill.orange {background:#fff0e7; color:#b44319;}
-    .status {font-size:.78rem; font-weight:800; color:#2d6a4f;}
-    div[data-testid="stMetric"] {background:white; border:1px solid #dfe9d7; padding:.8rem 1rem;
-                                border-radius:16px; box-shadow:0 5px 16px rgba(24,58,44,.05);}
-    .small-note {color:#65766e; font-size:.82rem;}
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
+st.set_page_config(page_title="Repair Quest", page_icon=":material/build:", layout="wide")
 
 
-def hero(title: str, subtitle: str, eyebrow: str) -> None:
-    content = (
-        f'<div class="hero"><div class="eyebrow">{eyebrow}</div>'
-        f"<h1>{title}</h1><p>{subtitle}</p></div>"
-    )
-    st.markdown(
-        content,
-        unsafe_allow_html=True,
-    )
-
-
-def flash_message() -> None:
-    if st.session_state.flash:
-        st.success(st.session_state.flash)
+def show_flash() -> None:
+    if message := st.session_state.flash:
+        st.success(message)
         st.session_state.flash = None
 
 
-def quest_card(quest: dict) -> None:
-    action_icon = {"Repair": "🔧", "Rehome": "🏠", "Salvage": "♻️"}.get(quest["action"], "🛠️")
-    helper_line = f" · Helping: {quest['helper']}" if quest.get("helper") else ""
-    st.markdown(
-        f"""
-        <div class="quest-card">
-          <span class="status">{quest["status"]}{helper_line}</span>
-          <h3>{action_icon} {quest["title"]}</h3>
-          <span class="pill orange">{quest["action"]}</span>
-          <span class="pill">{quest["difficulty"]}</span>
-          <span class="pill">~{quest["estimated_waste_kg"]} kg</span>
-          <p>{quest["description"]}</p>
-          <p><strong>First step:</strong> {quest["next_step"]}</p>
-          <p class="small-note">Posted by {quest["owner"]}</p>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def rescue_card(rescue: dict) -> None:
+    icons = {
+        "Repair": ":material/build:",
+        "Rehome": ":material/home:",
+        "Salvage": ":material/recycling:",
+    }
+    with st.container(border=True):
+        st.subheader(f"{icons[rescue['action']]} {rescue['title']}")
+        st.caption(f"Posted by {rescue['owner']} · {rescue['status']}")
+        st.write(rescue["description"])
+        st.caption(
+            f"{rescue['action']} · {rescue['difficulty']} · about "
+            f"{rescue['estimated_waste_kg']} kg of waste potentially avoided"
+        )
+        st.info(f"Safe first step: {rescue['next_step']}", icon=":material/lightbulb:")
 
-    player = st.session_state.current_player
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        claim_disabled = quest["status"] != "Open" or quest["owner"] == player
-        if st.button(
-            "Claim",
-            key=f"claim-{quest['id']}",
-            use_container_width=True,
-            disabled=claim_disabled,
-        ):
-            update_quest(quest["id"], status="Claimed", helper=player)
-            st.session_state.flash = f"You claimed “{quest['title']}”."
-            st.rerun()
-    with col2:
-        joined = player in quest.get("teammates", [])
-        if st.button(
-            "Joined ✓" if joined else "Join",
-            key=f"join-{quest['id']}",
-            use_container_width=True,
-            disabled=joined or quest["owner"] == player or quest["status"] == "Completed",
-        ):
-            update_quest(quest["id"], teammates=[*quest.get("teammates", []), player])
-            st.session_state.flash = f"You joined “{quest['title']}”."
-            st.rerun()
-    with col3:
-        if st.button(
-            "Offer part",
-            key=f"offer-{quest['id']}",
-            use_container_width=True,
-            disabled=quest["status"] == "Completed",
-        ):
-            offer = f"{player} offered to check for a spare part"
-            update_quest(quest["id"], offers=[*quest.get("offers", []), offer])
-            st.session_state.flash = f"Your spare-part offer was added to “{quest['title']}”."
-            st.rerun()
-
-    with st.expander(
-        f"Community help ({len(quest.get('suggestions', [])) + len(quest.get('offers', []))})"
-    ):
-        for message in [*quest.get("offers", []), *quest.get("suggestions", [])]:
-            st.write(f"• {message}")
-        with st.form(f"suggestion-{quest['id']}", clear_on_submit=True):
-            suggestion = st.text_input(
-                "Leave a quick suggestion",
-                placeholder="Try checking the cable...",
-            )
-            submitted = st.form_submit_button("Post suggestion")
-            if submitted and suggestion.strip():
-                update_quest(
-                    quest["id"],
-                    suggestions=[*quest.get("suggestions", []), f"{player}: {suggestion.strip()}"],
+        contributions = rescue["contributions"]
+        with st.expander(f"Suggestions ({len(contributions)})"):
+            if contributions:
+                for contribution in contributions:
+                    st.write(f"**{contribution['player']}**: {contribution['message']}")
+            else:
+                st.caption("No suggestions yet. Share a useful next step.")
+            with st.form(f"suggestion-{rescue['id']}", clear_on_submit=True):
+                suggestion = st.text_input(
+                    "Your suggestion", placeholder="Try checking the cable first…"
                 )
-                st.session_state.flash = "Suggestion posted."
-                st.rerun()
+                submitted = st.form_submit_button("Post suggestion", icon=":material/send:")
+            if submitted:
+                try:
+                    xp, streak, multiplier = add_suggestion(rescue["id"], suggestion)
+                    st.session_state.flash = (
+                        f"Suggestion posted. You earned {xp} XP "
+                        f"({CONTRIBUTOR_XP} × {multiplier:.2g}; {streak}-day streak)."
+                    )
+                    st.rerun()
+                except ValueError as exc:
+                    st.warning(str(exc))
 
 
 def discover_page() -> None:
-    hero(
-        "Rescue Board",
-        "See what your community is saving—and jump into a quest.",
-        "Discover",
+    st.title("Rescue board")
+    st.caption("Find an item to help save with one useful suggestion.")
+    show_flash()
+    selected_action = st.segmented_control(
+        "Filter rescues", ["All", "Repair", "Rehome", "Salvage"], default="All"
     )
-    flash_message()
-    filter_col, count_col = st.columns([2, 1])
-    with filter_col:
-        selected_action = st.segmented_control(
-            "Filter quests",
-            ["All", "Repair", "Rehome", "Salvage"],
-            default="All",
-            label_visibility="collapsed",
-        )
-    quests = [quest for quest in st.session_state.quests if quest["status"] != "Completed"]
+    rescues = [rescue for rescue in st.session_state.rescues if rescue["status"] == "Open"]
     if selected_action and selected_action != "All":
-        quests = [quest for quest in quests if quest["action"] == selected_action]
-    with count_col:
-        st.caption(f"{len(quests)} active rescue opportunities")
-
-    for index in range(0, len(quests), 2):
-        columns = st.columns(2)
-        for column, quest in zip(columns, quests[index : index + 2], strict=False):
+        rescues = [rescue for rescue in rescues if rescue["action"] == selected_action]
+    st.caption(f"{len(rescues)} open rescues")
+    for index in range(0, len(rescues), 2):
+        left, right = st.columns(2)
+        for column, rescue in zip((left, right), rescues[index : index + 2], strict=False):
             with column:
-                quest_card(quest)
+                rescue_card(rescue)
 
 
-def analysis_panel(analysis: QuestAnalysis) -> None:
-    icon = {RescueAction.REPAIR: "🔧", RescueAction.REHOME: "🏠", RescueAction.SALVAGE: "♻️"}[
-        analysis.recommended_action
-    ]
-    st.subheader(f"{icon} {analysis.quest_title}")
-    cols = st.columns(3)
-    cols[0].metric("Recommendation", analysis.recommended_action.value)
-    cols[1].metric("Difficulty", analysis.difficulty.value)
-    cols[2].metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
+def analysis_panel(analysis: RescueAnalysis) -> None:
+    st.subheader(analysis.rescue_title)
+    left, middle, right = st.columns(3)
+    left.metric("Recommended path", analysis.recommended_action.value)
+    middle.metric("Difficulty", analysis.difficulty.value)
+    right.metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
     st.write(analysis.reason)
-    st.info(f"**Safe first step:** {analysis.suggested_next_step}")
+    st.info(f"Safe first step: {analysis.suggested_next_step}", icon=":material/lightbulb:")
 
 
 def rescue_page() -> None:
-    hero(
-        "Start a Rescue Quest",
-        "Before replacing it, give your community one chance to save it.",
-        "Rescue",
-    )
-    flash_message()
-    create_tab, complete_tab = st.tabs(["Create a quest", "Complete a rescue"])
-
+    st.title("Start or complete a rescue")
+    show_flash()
+    create_tab, complete_tab = st.tabs(["Start a rescue", "Complete a rescue"])
     with create_tab:
         st.caption(
-            "AI mode is ready."
+            "AI analysis is ready."
             if ai_available()
-            else "Demo mode: add an OpenAI key to enable photo analysis."
+            else "Demo mode: add an OpenAI key for photo analysis."
         )
-        left, right = st.columns([1, 1.2])
-        with left:
+        with st.form("analyse-rescue"):
             image = st.file_uploader("Photo of the item", type=["jpg", "jpeg", "png", "webp"])
-            if image:
-                st.image(image, caption="Item to rescue", use_container_width=True)
-        with right:
             description = st.text_area(
-                "What happened?",
-                placeholder=(
-                    "My desk fan stopped working yesterday. I was thinking of throwing it away."
-                ),
-                height=130,
+                "What happened?", placeholder="My desk fan stopped working yesterday."
             )
-            if st.button("✨ Generate quest", type="primary", use_container_width=True):
-                if not description.strip():
-                    st.warning("Add a short description first.")
-                else:
-                    with st.spinner("Finding the best rescue path..."):
-                        try:
-                            st.session_state.analysis = analyze_item(
-                                description.strip(),
-                                image.getvalue() if image else None,
-                                image.type if image else "image/jpeg",
-                            ).model_dump(mode="json")
-                            st.session_state.analysis_description = description.strip()
-                        except Exception as exc:  # Streamlit should show a recoverable API error.
-                            st.error(f"AI analysis failed: {exc}")
-
+            generated = st.form_submit_button(
+                "Generate rescue", type="primary", icon=":material/auto_awesome:"
+            )
+        if generated:
+            if not description.strip():
+                st.warning("Add a short description first.")
+            else:
+                with st.spinner("Finding the best rescue path…"):
+                    try:
+                        st.session_state.analysis = analyze_item(
+                            description.strip(),
+                            image.getvalue() if image else None,
+                            image.type if image else "image/jpeg",
+                        ).model_dump(mode="json")
+                        st.session_state.analysis_description = description.strip()
+                    except Exception as exc:
+                        st.error(f"AI analysis failed: {exc}")
         if st.session_state.analysis:
-            st.divider()
-            analysis = QuestAnalysis.model_validate(st.session_state.analysis)
+            analysis = RescueAnalysis.model_validate(st.session_state.analysis)
             analysis_panel(analysis)
-            if st.button("Post to Rescue Board", type="primary"):
-                quest = create_quest(analysis, st.session_state.analysis_description)
+            if st.button("Post to rescue board", type="primary", icon=":material/publish:"):
+                rescue = create_rescue(analysis, st.session_state.analysis_description)
                 st.session_state.analysis = None
-                st.session_state.flash = f"“{quest['title']}” is now live on the Rescue Board."
+                st.session_state.flash = f"“{rescue['title']}” is now on the rescue board."
                 st.rerun()
 
     with complete_tab:
-        active = [
-            quest
-            for quest in st.session_state.quests
-            if quest["status"] != "Completed"
-            and (
-                quest["owner"] == st.session_state.current_player
-                or quest.get("helper") == st.session_state.current_player
-                or st.session_state.current_player in quest.get("teammates", [])
-            )
+        owned_open_rescues = [
+            rescue
+            for rescue in st.session_state.rescues
+            if rescue["status"] == RescueStatus.OPEN.value
+            and rescue["owner"] == st.session_state.current_player
         ]
-        if not active:
-            st.info("Claim or join a quest first, then come back to complete it.")
+        if not owned_open_rescues:
+            st.info("Switch to the original poster to complete one of their open rescues.")
         else:
-            labels = {quest["id"]: quest["title"] for quest in active}
-            selected_id = st.selectbox(
-                "Quest",
-                labels,
-                format_func=lambda quest_id: labels[quest_id],
-            )
-            outcome = st.radio(
-                "What happened?",
-                list(RescueAction),
-                format_func=lambda value: {
-                    RescueAction.REPAIR: "✅ Repaired",
-                    RescueAction.REHOME: "🏠 Rehomed",
-                    RescueAction.SALVAGE: "♻️ Parts reused",
-                }[value],
-                horizontal=True,
-            )
-            st.file_uploader(
-                "After photo (optional for the prototype)",
-                type=["jpg", "jpeg", "png", "webp"],
-                key="after-photo",
-            )
-            if st.button("Complete rescue", type="primary"):
-                points = complete_quest(selected_id, outcome)
-                st.balloons()
-                st.session_state.flash = (
-                    f"Rescue complete! You earned {points} Impact Points."
+            labels = {rescue["id"]: rescue["title"] for rescue in owned_open_rescues}
+            with st.form("complete-rescue"):
+                rescue_id = st.selectbox("Rescue", labels, format_func=labels.__getitem__)
+                outcome = st.selectbox(
+                    "Outcome", list(RescueAction), format_func=lambda value: value.value
                 )
-                st.rerun()
+                solvers = st.multiselect(
+                    "Who solved it?",
+                    PLAYERS,
+                    help=(
+                        "Choose everyone the original poster wants to recognise. "
+                        "Each receives Solver XP."
+                    ),
+                )
+                completed = st.form_submit_button(
+                    "Complete rescue", type="primary", icon=":material/check_circle:"
+                )
+            if completed:
+                try:
+                    awards = complete_rescue(rescue_id, outcome, solvers)
+                    award_text = ", ".join(f"{player} +{xp[0]} XP" for player, xp in awards.items())
+                    st.session_state.flash = f"Rescue complete. Solver XP awarded: {award_text}."
+                    st.balloons()
+                    st.rerun()
+                except (PermissionError, ValueError) as exc:
+                    st.warning(str(exc))
 
 
 def impact_page() -> None:
-    hero(
-        "The community is on a roll",
-        "Every repaired, rehomed, or salvaged item moves the community forward.",
-        "Impact",
+    st.title("Community impact")
+    st.caption(
+        "Shared impact, with individual recognition for the people who contribute and solve."
     )
-    session_impact = impact_summary(st.session_state.quests)
-    baseline = {"items_rescued": 12, "waste_avoided_kg": 7.4, "purchases_avoided": 4, "points": 620}
+    session_impact = impact_summary(st.session_state.rescues)
+    baseline = {"items_rescued": 12, "waste_avoided_kg": 7.4, "purchases_avoided": 4}
     total = {key: baseline[key] + session_impact[key] for key in baseline}
-
-    cols = st.columns(4)
-    cols[0].metric(
-        "Items rescued",
-        int(total["items_rescued"]),
-        f"+{session_impact['items_rescued']} today",
+    left, middle, right = st.columns(3)
+    left.metric(
+        "Items rescued", int(total["items_rescued"]), f"+{session_impact['items_rescued']} today"
     )
-    cols[1].metric("Waste avoided", f"{total['waste_avoided_kg']:.1f} kg")
-    cols[2].metric("Purchases avoided", int(total["purchases_avoided"]))
-    cols[3].metric("Impact Points", int(total["points"]), f"+{session_impact['points']} today")
+    middle.metric("Waste avoided", f"{total['waste_avoided_kg']:.1f} kg")
+    right.metric("Purchases avoided", int(total["purchases_avoided"]))
+    st.progress(
+        min(total["items_rescued"] / 25, 1.0),
+        text=f"{int(total['items_rescued'])} / 25 items toward the next community milestone",
+    )
 
-    progress = min(float(total["points"]) / 1_000, 1.0)
-    st.subheader("Next community level: Circular Champions")
-    st.progress(progress, text=f"{int(total['points'])} / 1,000 points")
-
-    board_col, history_col = st.columns([1, 1.15])
+    board_col, history_col = st.columns(2)
     with board_col:
-        st.subheader("Leaderboard")
-        board = [row.copy() for row in LEADERBOARD]
-        current_player = st.session_state.current_player
-        current_row = next(row for row in board if row["player"] == current_player)
-        current_row.update(
-            items=current_row["items"] + int(session_impact["items_rescued"]),
-            waste_kg=current_row["waste_kg"] + float(session_impact["waste_avoided_kg"]),
-            points=current_row["points"] + int(session_impact["points"]),
+        st.subheader("XP leaderboard")
+        board = sorted(
+            st.session_state.player_stats.items(), key=lambda item: item[1]["xp"], reverse=True
         )
-        board.sort(key=lambda row: row["points"], reverse=True)
-        for rank, row in enumerate(board, start=1):
-            medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
-            st.markdown(
-                f"**{medal} {row['player']}**  \n"
-                f"{row['items']} rescues · {row['waste_kg']:.1f} kg · {row['points']} pts"
+        for rank, (player, stats) in enumerate(board, start=1):
+            streak = streak_length(stats["activity_dates"])
+            multiplier = streak_multiplier(streak)
+            st.write(
+                f"**#{rank} {player}** — {stats['xp']} XP · {streak}-day streak · {multiplier:.2g}×"
             )
+        st.caption(
+            f"Suggestion: {CONTRIBUTOR_XP} XP × streak multiplier · "
+            f"Solver: {SOLVER_XP} XP × streak multiplier"
+        )
     with history_col:
-        st.subheader("Latest rescues")
-        completed = [quest for quest in st.session_state.quests if quest["status"] == "Completed"]
+        st.subheader("Completed rescues")
+        completed = [
+            rescue
+            for rescue in st.session_state.rescues
+            if rescue["status"] == RescueStatus.COMPLETED.value
+        ]
         if not completed:
-            st.info(
-                "Complete a quest to add your first live result. "
-                "Seeded community totals are shown for the demo."
-            )
-        for quest in completed:
-            st.success(
-                f"**{quest['item_name']}** — {quest['outcome']} · "
-                f"{quest['estimated_waste_kg']} kg avoided · +{quest['points_awarded']} pts"
-            )
+            st.info("Complete a rescue to see it here.")
+        for rescue in completed:
+            solver_text = ", ".join(rescue["solvers"])
+            st.success(f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}")
 
 
 initialise_state()
 
 with st.sidebar:
-    st.markdown("## 🛠️ Repair Quest")
+    st.title("Repair Quest")
     st.caption("Turn throwaways into community wins.")
-    page = st.radio("Go to", ["Discover", "Rescue", "Impact"], label_visibility="collapsed")
+    page = st.radio("Go to", ["Discover", "Rescue", "Impact"])
     st.divider()
     st.session_state.current_player = st.selectbox(
-        "Playing as",
-        PLAYERS,
-        index=PLAYERS.index(st.session_state.current_player),
+        "Playing as", PLAYERS, index=PLAYERS.index(st.session_state.current_player)
     )
-    st.caption("Hackathon demo profile · no sign-in needed")
-    st.divider()
-    if st.button("Reset demo data", use_container_width=True):
+    stats = st.session_state.player_stats[st.session_state.current_player]
+    current_streak = streak_length(stats["activity_dates"])
+    st.caption(
+        f"{stats['xp']} XP · {current_streak}-day streak · {streak_multiplier(current_streak):.2g}×"
+    )
+    if st.button("Reset demo data", icon=":material/restart_alt:"):
         for key in list(st.session_state):
             del st.session_state[key]
         st.rerun()

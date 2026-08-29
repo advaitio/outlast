@@ -1,30 +1,31 @@
 from __future__ import annotations
 
+from datetime import date
 from uuid import uuid4
 
 import streamlit as st
 
-from repair_quest.models import QuestAnalysis, RescueAction
-from repair_quest.scoring import calculate_points
-from repair_quest.seed import PLAYERS, seeded_quests
+from repair_quest.models import ContributionType, RescueAction, RescueAnalysis, RescueStatus
+from repair_quest.scoring import CONTRIBUTOR_XP, SOLVER_XP, award_for
+from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
 def initialise_state() -> None:
     defaults = {
-        "quests": seeded_quests(),
+        "rescues": seeded_rescues(),
+        "player_stats": seeded_player_stats(),
         "current_player": PLAYERS[0],
         "analysis": None,
         "flash": None,
     }
     for key, value in defaults.items():
-        if key not in st.session_state:
-            st.session_state[key] = value
+        st.session_state.setdefault(key, value)
 
 
-def create_quest(analysis: QuestAnalysis, description: str) -> dict:
-    quest = {
+def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
+    rescue = {
         "id": str(uuid4())[:8],
-        "title": analysis.quest_title,
+        "title": analysis.rescue_title,
         "item_name": analysis.item_name,
         "description": description,
         "owner": st.session_state.current_player,
@@ -32,36 +33,73 @@ def create_quest(analysis: QuestAnalysis, description: str) -> dict:
         "difficulty": analysis.difficulty.value,
         "estimated_waste_kg": analysis.estimated_waste_kg,
         "next_step": analysis.suggested_next_step,
-        "status": "Open",
-        "helper": None,
-        "teammates": [],
-        "offers": [],
-        "suggestions": [],
+        "status": RescueStatus.OPEN.value,
+        "contributions": [],
         "outcome": None,
-        "points_awarded": 0,
+        "solvers": [],
+        "solver_xp_awards": {},
     }
-    st.session_state.quests.insert(0, quest)
-    return quest
+    st.session_state.rescues.insert(0, rescue)
+    return rescue
 
 
-def update_quest(quest_id: str, **changes: object) -> None:
-    for quest in st.session_state.quests:
-        if quest["id"] == quest_id:
-            quest.update(changes)
+def update_rescue(rescue_id: str, **changes: object) -> None:
+    for rescue in st.session_state.rescues:
+        if rescue["id"] == rescue_id:
+            rescue.update(changes)
             return
-    raise KeyError(f"Quest not found: {quest_id}")
+    raise KeyError(f"Rescue not found: {rescue_id}")
 
 
-def complete_quest(quest_id: str, outcome: RescueAction) -> int:
-    quest = next(quest for quest in st.session_state.quests if quest["id"] == quest_id)
-    helpers = {name for name in quest.get("teammates", []) if name != quest["owner"]}
-    if quest.get("helper") and quest["helper"] != quest["owner"]:
-        helpers.add(quest["helper"])
-    points = calculate_points(outcome, len(helpers))
-    update_quest(
-        quest_id,
-        status="Completed",
+def _award_xp(player: str, base_xp: int) -> tuple[int, int, float]:
+    stats = st.session_state.player_stats[player]
+    today = date.today().isoformat()
+    if today not in stats["activity_dates"]:
+        stats["activity_dates"].append(today)
+    _, streak, multiplier = award_for(0, stats["activity_dates"])
+    awarded = round(base_xp * multiplier)
+    stats["xp"] += awarded
+    return awarded, streak, multiplier
+
+
+def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
+    if not message.strip():
+        raise ValueError("A suggestion cannot be empty.")
+    rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
+    if rescue["status"] == RescueStatus.COMPLETED.value:
+        raise ValueError("Completed rescues cannot receive suggestions.")
+    player = st.session_state.current_player
+    awarded, streak, multiplier = _award_xp(player, CONTRIBUTOR_XP)
+    contribution = {
+        "player": player,
+        "message": message.strip(),
+        "contribution_type": ContributionType.SUGGESTION.value,
+        "created_at": date.today().isoformat(),
+        "xp_awarded": awarded,
+    }
+    update_rescue(rescue_id, contributions=[*rescue["contributions"], contribution])
+    return awarded, streak, multiplier
+
+
+def complete_rescue(
+    rescue_id: str, outcome: RescueAction, solvers: list[str]
+) -> dict[str, tuple[int, int, float]]:
+    rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
+    if rescue["status"] == RescueStatus.COMPLETED.value:
+        raise ValueError("This rescue is already complete.")
+    if rescue["owner"] != st.session_state.current_player:
+        raise PermissionError("Only the original poster can complete this rescue.")
+    selected_solvers = list(dict.fromkeys(solvers))
+    if not selected_solvers:
+        raise ValueError("Select at least one solver.")
+    if any(player not in PLAYERS for player in selected_solvers):
+        raise ValueError("Select solvers from the listed community members.")
+    awards = {player: _award_xp(player, SOLVER_XP) for player in selected_solvers}
+    update_rescue(
+        rescue_id,
+        status=RescueStatus.COMPLETED.value,
         outcome=outcome.value,
-        points_awarded=points,
+        solvers=selected_solvers,
+        solver_xp_awards={player: award[0] for player, award in awards.items()},
     )
-    return points
+    return awards
