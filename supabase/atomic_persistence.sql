@@ -23,7 +23,8 @@ $$;
 create or replace function public.complete_rescue_with_awards(
   p_rescue_id uuid, p_completed_by_id uuid, p_outcome text,
   p_completion_xp_awarded integer, p_completion_streak_multiplier numeric,
-  p_solvers jsonb, p_activity_date date, p_after_image_path text default null
+  p_solvers jsonb, p_activity_date date, p_after_image_path text default null,
+  p_disposal_location text default null, p_disposal_evidence_xp_awarded integer default 0
 )
 returns void language plpgsql security definer set search_path = public as $$
 declare
@@ -39,7 +40,8 @@ begin
   update public.rescues set status = 'Completed', outcome = p_outcome,
     completed_by_id = p_completed_by_id, completion_xp_awarded = p_completion_xp_awarded,
     completion_streak_multiplier = p_completion_streak_multiplier,
-    after_image_path = p_after_image_path, completed_at = now()
+    after_image_path = p_after_image_path, disposal_location = p_disposal_location,
+    disposal_evidence_xp_awarded = p_disposal_evidence_xp_awarded, completed_at = now()
   where id = p_rescue_id;
   update public.players set xp = xp + p_completion_xp_awarded where id = p_completed_by_id;
   if not found then raise exception 'Completing player not found'; end if;
@@ -63,8 +65,26 @@ $$;
 
 grant execute on function public.add_rescue_suggestion(uuid, uuid, text, integer, numeric, date)
   to anon, authenticated;
-grant execute on function public.complete_rescue_with_awards(uuid, uuid, text, integer, numeric, jsonb, date, text)
+grant execute on function public.complete_rescue_with_awards(uuid, uuid, text, integer, numeric, jsonb, date, text, text, integer)
   to anon, authenticated;
+
+create or replace function public.delete_open_rescue(p_rescue_id uuid, p_owner_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_owner_id uuid; v_status text;
+begin
+  select owner_id, status into v_owner_id, v_status
+  from public.rescues where id = p_rescue_id for update;
+  if v_owner_id is distinct from p_owner_id then
+    raise exception 'Only the item owner can delete it';
+  end if;
+  if v_status is distinct from 'Open' then
+    raise exception 'Only open items can be deleted';
+  end if;
+  delete from public.rescues where id = p_rescue_id;
+end;
+$$;
+
+grant execute on function public.delete_open_rescue(uuid, uuid) to anon, authenticated;
 
 drop policy if exists "Prototype upload rescue images" on storage.objects;
 create policy "Prototype upload rescue images" on storage.objects for insert

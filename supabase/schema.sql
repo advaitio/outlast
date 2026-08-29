@@ -25,6 +25,8 @@ create table if not exists public.rescues (
   suggested_next_step text not null,
   image_path text,
   after_image_path text,
+  disposal_location text,
+  disposal_evidence_xp_awarded integer not null default 0 check (disposal_evidence_xp_awarded >= 0),
   status text not null default 'Open' check (status in ('Open', 'Completed')),
   outcome text check (outcome in ('Repair', 'Recycle / dispose responsibly')),
   completed_by_id uuid references public.players(id),
@@ -42,6 +44,9 @@ create table if not exists public.rescues (
     )
   )
 );
+
+alter table public.rescues add column if not exists disposal_location text;
+alter table public.rescues add column if not exists disposal_evidence_xp_awarded integer not null default 0;
 
 -- Migrate prototype data from the former multi-path rescue flow.
 update public.rescues
