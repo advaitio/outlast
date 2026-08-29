@@ -6,7 +6,7 @@ missing or the remote project is unavailable.
 
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import date
 from typing import Any
 
 import streamlit as st
@@ -40,6 +40,27 @@ def _client() -> Any:
 def _player_id(name: str) -> str:
     row = _client().table("players").select("id").eq("display_name", name).single().execute().data
     return row["id"]
+
+
+def _image_path(rescue_id: str, label: str, mime_type: str | None) -> str:
+    extensions = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+    return f"{rescue_id}/{label}.{extensions.get(mime_type or '', 'jpg')}"
+
+
+def _upload_image(
+    client: Any, rescue_id: str, label: str, image_bytes: bytes | None, mime_type: str | None
+) -> str | None:
+    if not image_bytes:
+        return None
+    path = _image_path(rescue_id, label, mime_type)
+    client.storage.from_("rescue-images").upload(
+        path, image_bytes, {"content-type": mime_type or "image/jpeg", "upsert": "false"}
+    )
+    return path
+
+
+def _public_image_url(client: Any, path: str | None) -> str | None:
+    return client.storage.from_("rescue-images").get_public_url(path) if path else None
 
 
 def load_data() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]] | None:
@@ -116,6 +137,8 @@ def load_data() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]] | None
                     "solvers": solver_by_rescue.get(row["id"], []),
                     "solver_xp_awards": awards_by_rescue.get(row["id"], {}),
                     "solver_streak_multipliers": multipliers_by_rescue.get(row["id"], {}),
+                    "image_url": _public_image_url(client, row.get("image_path")),
+                    "after_image_url": _public_image_url(client, row.get("after_image_path")),
                 }
             )
         stats = {
@@ -123,8 +146,8 @@ def load_data() -> tuple[list[dict[str, Any]], dict[str, dict[str, Any]]] | None
             for row in players
         }
         return result, stats
-    except Exception:
-        return None
+    except Exception as error:
+        raise PersistenceError("Could not load data from Supabase.") from error
 
 
 def create_rescue(rescue: dict[str, Any]) -> bool:
@@ -132,6 +155,13 @@ def create_rescue(rescue: dict[str, Any]) -> bool:
         return False
     try:
         client = _client()
+        image_path = _upload_image(
+            client,
+            rescue["id"],
+            "before",
+            rescue.get("image_bytes"),
+            rescue.get("image_mime_type"),
+        )
         client.table("rescues").insert(
             {
                 "id": rescue["id"],
@@ -143,8 +173,11 @@ def create_rescue(rescue: dict[str, Any]) -> bool:
                 "difficulty": rescue["difficulty"],
                 "estimated_waste_kg": rescue["estimated_waste_kg"],
                 "suggested_next_step": rescue["next_step"],
+                "image_path": image_path,
             }
         ).execute()
+        rescue["image_path"] = image_path
+        rescue["image_url"] = _public_image_url(client, image_path)
         return True
     except Exception as error:
         raise PersistenceError("Could not save the new rescue to Supabase.") from error
@@ -154,30 +187,16 @@ def add_contribution(rescue_id: str, player: str, message: str, xp: int, multipl
     if not available():
         return False
     try:
-        _client().table("rescue_contributions").insert(
+        _client().rpc(
+            "add_rescue_suggestion",
             {
-                "rescue_id": rescue_id,
-                "player_id": _player_id(player),
-                "contribution_type": "Suggestion",
-                "message": message,
-                "xp_awarded": xp,
-                "streak_multiplier": multiplier,
-            }
-        ).execute()
-        _client().table("players").update(
-            {
-                "xp": _client()
-                .table("players")
-                .select("xp")
-                .eq("display_name", player)
-                .single()
-                .execute()
-                .data["xp"]
-                + xp
-            }
-        ).eq("display_name", player).execute()
-        _client().table("player_activity_days").upsert(
-            {"player_id": _player_id(player), "activity_date": date.today().isoformat()}
+                "p_rescue_id": rescue_id,
+                "p_player_id": _player_id(player),
+                "p_message": message,
+                "p_xp_awarded": xp,
+                "p_streak_multiplier": multiplier,
+                "p_activity_date": date.today().isoformat(),
+            },
         ).execute()
         return True
     except Exception as error:
@@ -189,41 +208,36 @@ def complete_rescue(rescue: dict[str, Any]) -> bool:
         return False
     try:
         client = _client()
-        client.table("rescues").update(
+        after_image_path = _upload_image(
+            client,
+            rescue["id"],
+            "after",
+            rescue.get("after_image_bytes"),
+            rescue.get("after_image_mime_type"),
+        )
+        solvers = [
             {
-                "status": "Completed",
-                "outcome": rescue["outcome"],
-                "completed_by_id": _player_id(rescue["completed_by"]),
-                "completion_xp_awarded": rescue["completion_xp_award"],
-                "completion_streak_multiplier": rescue["completion_streak_multiplier"],
-                "completed_at": datetime.now(UTC).isoformat(),
+                "player_id": _player_id(player),
+                "xp_awarded": xp,
+                "streak_multiplier": rescue["solver_streak_multipliers"][player],
             }
-        ).eq("id", rescue["id"]).execute()
-        for player, xp in rescue["solver_xp_awards"].items():
-            client.table("rescue_solvers").upsert(
-                {
-                    "rescue_id": rescue["id"],
-                    "player_id": _player_id(player),
-                    "xp_awarded": xp,
-                    "streak_multiplier": rescue["solver_streak_multipliers"][player],
-                }
-            ).execute()
-        for player, xp in [
-            (rescue["completed_by"], rescue["completion_xp_award"]),
-            *rescue["solver_xp_awards"].items(),
-        ]:
-            row = (
-                client.table("players")
-                .select("id, xp")
-                .eq("display_name", player)
-                .single()
-                .execute()
-                .data
-            )
-            client.table("players").update({"xp": row["xp"] + xp}).eq("id", row["id"]).execute()
-            client.table("player_activity_days").upsert(
-                {"player_id": row["id"], "activity_date": date.today().isoformat()}
-            ).execute()
+            for player, xp in rescue["solver_xp_awards"].items()
+        ]
+        client.rpc(
+            "complete_rescue_with_awards",
+            {
+                "p_rescue_id": rescue["id"],
+                "p_completed_by_id": _player_id(rescue["completed_by"]),
+                "p_outcome": rescue["outcome"],
+                "p_completion_xp_awarded": rescue["completion_xp_award"],
+                "p_completion_streak_multiplier": rescue["completion_streak_multiplier"],
+                "p_solvers": solvers,
+                "p_activity_date": date.today().isoformat(),
+                "p_after_image_path": after_image_path,
+            },
+        ).execute()
+        rescue["after_image_path"] = after_image_path
+        rescue["after_image_url"] = _public_image_url(client, after_image_path)
         return True
     except Exception as error:
         raise PersistenceError("Could not complete the rescue in Supabase.") from error

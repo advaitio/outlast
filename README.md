@@ -65,7 +65,7 @@ Streamlit app
 └── Python scoring rules
 ```
 
-When Supabase credentials are configured, rescues, suggestions, solver awards, activity days, and player XP are persisted remotely. Without credentials or if the project is unavailable, the app falls back to seeded session-state demo data.
+When Supabase credentials are configured, rescues, images, suggestions, solver awards, activity days, and player XP are persisted remotely. Run `supabase/schema.sql` followed by `supabase/atomic_persistence.sql`; the second script makes suggestion and completion awards atomic. If the configured database cannot be loaded, the app shows the connection error instead of silently replacing remote data with the demo.
 
 ## Project map
 
@@ -77,6 +77,7 @@ repair_quest/scoring.py      XP streak and community impact rules
 repair_quest/seed.py         Fake users, rescues, and individual XP data
 repair_quest/state.py        Prototype session-state actions
 supabase/schema.sql          Shared database and image-store setup
+supabase/atomic_persistence.sql  Transactional write functions and Storage upload policy
 tests/                       Fast unit tests
 .github/workflows/ci.yml     Automated lint and test checks
 ```
@@ -84,9 +85,7 @@ tests/                       Fast unit tests
 ## Highest-priority next steps
 
 1. Add the OpenAI project key and test with 5–10 real item photos; tune only the prompt if results are unclear.
-2. Create a Supabase project and run `supabase/schema.sql`.
-3. Add image upload to the `rescue-images` bucket and save its returned path on each rescue.
-4. Move streak and XP awarding into a transactional database function before enabling real accounts.
-5. Polish the single fan rescue demo, deploy to Streamlit Community Cloud, and rehearse a 2–3 minute pitch.
+2. Create a Supabase project and run `supabase/schema.sql`, then `supabase/atomic_persistence.sql`.
+3. Polish the single fan rescue demo, deploy to Streamlit Community Cloud, and rehearse a 2–3 minute pitch.
 
 Do not add real authentication, payments, geolocation, chat, or a repair-guide database until the core demo is polished.

@@ -13,7 +13,13 @@ from repair_quest.scoring import (
     streak_length,
 )
 from repair_quest.seed import PLAYERS
-from repair_quest.state import add_suggestion, complete_rescue, create_rescue, initialise_state
+from repair_quest.state import (
+    add_suggestion,
+    complete_rescue,
+    create_rescue,
+    initialise_state,
+    refresh_from_database,
+)
 
 st.set_page_config(page_title="Repair Quest", page_icon=":material/build:", layout="wide")
 
@@ -31,11 +37,11 @@ def rescue_card(rescue: dict) -> None:
         "Salvage": ":material/recycling:",
     }
     with st.container(border=True):
-        if rescue.get("image_bytes"):
+        if rescue.get("image_bytes") or rescue.get("image_url"):
             st.image(
-                rescue["image_bytes"],
+                rescue.get("image_bytes") or rescue["image_url"],
                 caption=f"{rescue['item_name']} submitted for rescue",
-                use_container_width=True,
+                width="stretch",
             )
         st.subheader(f"{icons[rescue['action']]} {rescue['title']}")
         st.caption(f"Posted by {rescue['owner']} · {rescue['status']}")
@@ -196,7 +202,7 @@ def rescue_page() -> None:
                     key="after-photo",
                 )
                 if after_image:
-                    st.image(after_image, caption="Completed rescue", use_container_width=True)
+                    st.image(after_image, caption="Completed rescue", width="stretch")
                 completed = st.form_submit_button(
                     "Complete rescue", type="primary", icon=":material/check_circle:"
                 )
@@ -266,14 +272,14 @@ def impact_page() -> None:
         for rescue in completed:
             solver_text = ", ".join(rescue["solvers"])
             st.success(f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}")
-            before_image = rescue.get("image_bytes")
-            after_image = rescue.get("after_image_bytes")
+            before_image = rescue.get("image_bytes") or rescue.get("image_url")
+            after_image = rescue.get("after_image_bytes") or rescue.get("after_image_url")
             if before_image or after_image:
                 image_columns = st.columns(2)
                 if before_image:
-                    image_columns[0].image(before_image, caption="Before", use_container_width=True)
+                    image_columns[0].image(before_image, caption="Before", width="stretch")
                 if after_image:
-                    image_columns[1].image(after_image, caption="After", use_container_width=True)
+                    image_columns[1].image(after_image, caption="After", width="stretch")
 
 
 def my_rescues_page() -> None:
@@ -311,6 +317,16 @@ with st.sidebar:
     stats = st.session_state.player_stats[st.session_state.current_player]
     current_streak = streak_length(stats["activity_dates"])
     st.caption(f"{stats['xp']} XP · {current_streak}-day streak")
+    if db.available():
+        if st.button("Refresh data", icon=":material/refresh:"):
+            try:
+                refresh_from_database()
+                st.session_state.flash = "Latest community data loaded."
+                st.rerun()
+            except db.PersistenceError as exc:
+                st.session_state.persistence_error = str(exc)
+        if st.session_state.persistence_error:
+            st.warning(st.session_state.persistence_error)
     if st.button("Reset demo data", icon=":material/restart_alt:"):
         for key in list(st.session_state):
             del st.session_state[key]

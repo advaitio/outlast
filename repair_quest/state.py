@@ -12,19 +12,35 @@ from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
 def initialise_state() -> None:
-    remote = db.load_data()
+    remote = None
+    persistence_error = None
+    if db.available():
+        try:
+            remote = db.load_data()
+        except db.PersistenceError as error:
+            persistence_error = str(error)
     defaults = {
-        "rescues": remote[0] if remote and remote[0] else seeded_rescues(),
-        "player_stats": remote[1] if remote and remote[0] else seeded_player_stats(),
+        "rescues": remote[0] if remote is not None else seeded_rescues(),
+        "player_stats": remote[1] if remote is not None else seeded_player_stats(),
         "current_player": PLAYERS[0],
         "analysis": None,
         "analysis_description": "",
         "analysis_image_bytes": None,
         "analysis_image_mime": None,
         "flash": None,
+        "persistence_error": persistence_error,
     }
     for key, value in defaults.items():
         st.session_state.setdefault(key, value)
+
+
+def refresh_from_database() -> None:
+    """Replace this session's view with the latest durable Supabase data."""
+    remote = db.load_data()
+    if remote is None:
+        return
+    st.session_state.rescues, st.session_state.player_stats = remote
+    st.session_state.persistence_error = None
 
 
 def create_rescue(

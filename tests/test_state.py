@@ -7,6 +7,12 @@ from repair_quest.seed import seeded_player_stats, seeded_rescues
 from repair_quest.state import add_suggestion, complete_rescue, create_rescue
 
 
+@pytest.fixture(autouse=True)
+def use_demo_persistence(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Unit tests must never use the configured Supabase project."""
+    monkeypatch.setattr(db, "available", lambda: False)
+
+
 def test_completion_awards_xp_to_the_original_poster() -> None:
     st.session_state.clear()
     st.session_state.rescues = seeded_rescues()
