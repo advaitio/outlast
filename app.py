@@ -4,7 +4,8 @@ import streamlit as st
 
 from repair_quest import db
 from repair_quest.ai import ai_available, analyze_item
-from repair_quest.models import RescueAction, RescueAnalysis, RescueStatus
+from repair_quest.ai import disposal_guidance as generate_disposal_guidance
+from repair_quest.models import DisposalGuidance, RescueAnalysis, RescueOutcome, RescueStatus
 from repair_quest.scoring import (
     COMPLETER_XP,
     CONTRIBUTOR_XP,
@@ -19,6 +20,7 @@ from repair_quest.state import (
     create_rescue,
     initialise_state,
     refresh_from_database,
+    save_disposal_guidance,
 )
 
 st.set_page_config(page_title="Repair Quest", page_icon=":material/build:", layout="wide")
@@ -34,7 +36,6 @@ def rescue_card(rescue: dict) -> None:
     icons = {
         "Repair": ":material/build:",
         "Rehome": ":material/home:",
-        "Salvage": ":material/recycling:",
     }
     with st.container(border=True):
         if rescue.get("image_bytes") or rescue.get("image_url"):
@@ -43,7 +44,7 @@ def rescue_card(rescue: dict) -> None:
                 caption=f"{rescue['item_name']} submitted for rescue",
                 width="stretch",
             )
-        st.subheader(f"{icons[rescue['action']]} {rescue['title']}")
+        st.subheader(f"{icons.get(rescue['action'], ':material/build:')} {rescue['title']}")
         st.caption(f"Posted by {rescue['owner']} · {rescue['status']}")
         st.write(rescue["description"])
         st.caption(
@@ -87,7 +88,7 @@ def discover_page() -> None:
     st.caption("Find an item to help save with one useful suggestion.")
     show_flash()
     selected_action = st.segmented_control(
-        "Filter rescues", ["All", "Repair", "Rehome", "Salvage"], default="All"
+        "Filter rescues", ["All", "Repair", "Rehome"], default="All"
     )
     rescues = [rescue for rescue in st.session_state.rescues if rescue["status"] == "Open"]
     if selected_action and selected_action != "All":
@@ -186,14 +187,14 @@ def rescue_page() -> None:
             with st.form("complete-rescue"):
                 rescue_id = st.selectbox("Rescue", labels, format_func=labels.__getitem__)
                 outcome = st.selectbox(
-                    "Outcome", list(RescueAction), format_func=lambda value: value.value
+                    "Outcome", list(RescueOutcome), format_func=lambda value: value.value
                 )
                 solvers = st.multiselect(
-                    "Who solved it?",
+                    "Who helped solve it?",
                     PLAYERS,
                     help=(
-                        "Choose everyone the original poster wants to recognise. "
-                        "Each receives Solver XP."
+                        "Choose everyone the original poster wants to recognise for a Repair or "
+                        "Rehome. Leave this blank for Recycle / dispose responsibly."
                     ),
                 )
                 after_image = st.file_uploader(
@@ -218,10 +219,14 @@ def rescue_page() -> None:
                     award_text = ", ".join(
                         f"{player} +{xp[0]} XP" for player, xp in solver_awards.items()
                     )
-                    st.session_state.flash = (
-                        f"Rescue complete. You earned {completion_award[0]} XP for completing it. "
-                        f"Solver XP awarded: {award_text}."
-                    )
+                    if outcome == RescueOutcome.RECYCLE_DISPOSE:
+                        st.session_state.flash = "Item marked as recycled or responsibly disposed."
+                    else:
+                        st.session_state.flash = (
+                            f"Rescue complete. You earned {completion_award[0]} XP for completing "
+                            "it. "
+                            f"Solver XP awarded: {award_text}."
+                        )
                     st.balloons()
                     st.rerun()
                 except (PermissionError, ValueError, db.PersistenceError) as exc:
@@ -234,14 +239,21 @@ def impact_page() -> None:
         "Shared impact, with individual recognition for the people who contribute and solve."
     )
     session_impact = impact_summary(st.session_state.rescues)
-    baseline = {"items_rescued": 12, "waste_avoided_kg": 7.4, "purchases_avoided": 4}
+    baseline = {
+        "items_rescued": 12,
+        "waste_avoided_kg": 7.4,
+        "purchases_avoided": 4,
+        "responsible_exits": 0,
+    }
     total = {key: baseline[key] + session_impact[key] for key in baseline}
-    left, middle, right = st.columns(3)
+    left, middle, right, exits = st.columns(4)
     left.metric(
         "Items rescued", int(total["items_rescued"]), f"+{session_impact['items_rescued']} today"
     )
     middle.metric("Waste avoided", f"{total['waste_avoided_kg']:.1f} kg")
     right.metric("Purchases avoided", int(total["purchases_avoided"]))
+    exits.metric("Responsible exits", int(total["responsible_exits"]))
+    st.caption("Responsible exits are tracked separately and do not count as items rescued.")
     st.progress(
         min(total["items_rescued"] / 25, 1.0),
         text=f"{int(total['items_rescued'])} / 25 items toward the next community milestone",
@@ -271,7 +283,12 @@ def impact_page() -> None:
             st.info("Complete a rescue to see it here.")
         for rescue in completed:
             solver_text = ", ".join(rescue["solvers"])
-            st.success(f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}")
+            if rescue["outcome"] == RescueOutcome.RECYCLE_DISPOSE.value:
+                st.success(f"**{rescue['item_name']}** — recycled or responsibly disposed")
+            else:
+                st.success(
+                    f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}"
+                )
             before_image = rescue.get("image_bytes") or rescue.get("image_url")
             after_image = rescue.get("after_image_bytes") or rescue.get("after_image_url")
             if before_image or after_image:
@@ -280,6 +297,64 @@ def impact_page() -> None:
                     image_columns[0].image(before_image, caption="Before", width="stretch")
                 if after_image:
                     image_columns[1].image(after_image, caption="After", width="stretch")
+
+
+def disposal_panel(rescue: dict) -> None:
+    """Show owner-only, item-specific Singapore disposal guidance."""
+    if rescue["status"] == RescueStatus.COMPLETED.value:
+        return
+    panel_key = f"disposal-panel-{rescue['id']}"
+
+    def keep_panel_open() -> None:
+        st.session_state[panel_key] = True
+
+    with st.expander(
+        "I have to let this item go",
+        icon=":material/recycling:",
+        key=panel_key,
+        on_change="rerun",
+    ):
+        st.caption("Private to you · Guidance for when repair or rehoming is not viable.")
+        guidance_data = rescue.get("disposal_guidance")
+        if not guidance_data:
+            if st.button(
+                "How to responsibly recycle or dispose this item?",
+                key=f"disposal-guidance-{rescue['id']}",
+                icon=":material/auto_awesome:",
+                on_click=keep_panel_open,
+            ):
+                with st.spinner("Preparing disposal guidance…"):
+                    try:
+                        guidance = generate_disposal_guidance(
+                            rescue["item_name"],
+                            rescue["description"],
+                            rescue.get("image_bytes"),
+                            rescue.get("image_mime_type") or "image/jpeg",
+                        )
+                        save_disposal_guidance(rescue["id"], guidance)
+                        guidance_data = guidance.model_dump(mode="json")
+                    except (db.PersistenceError, PermissionError, ValueError) as exc:
+                        st.warning(str(exc))
+                    except Exception as exc:
+                        st.error(f"Could not prepare disposal guidance: {exc}")
+            if not guidance_data:
+                return
+
+        guidance = DisposalGuidance.model_validate(guidance_data)
+        st.info(guidance.recommendation, icon=":material/location_on:")
+        st.caption(guidance.category)
+        st.markdown("**Before you recycle or dispose it**")
+        for step in guidance.preparation_steps:
+            st.write(f"• {step}")
+        st.warning(guidance.safety_note, icon=":material/health_and_safety:")
+        st.link_button(
+            "Open official guidance",
+            guidance.official_resource_url,
+            icon=":material/open_in_new:",
+        )
+        st.caption(
+            "To record this outcome, choose Recycle / dispose responsibly in Complete a rescue."
+        )
 
 
 def my_rescues_page() -> None:
@@ -302,6 +377,7 @@ def my_rescues_page() -> None:
         for column, rescue in zip(columns, rescues[index : index + 2], strict=False):
             with column:
                 rescue_card(rescue)
+                disposal_panel(rescue)
 
 
 initialise_state()

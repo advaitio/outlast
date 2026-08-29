@@ -34,11 +34,16 @@ def test_xp_awards_use_the_active_streak() -> None:
 def test_impact_summary_counts_completed_rescues_only() -> None:
     rescues = [
         {"status": "Completed", "estimated_waste_kg": 1.25, "outcome": "Repair"},
-        {"status": "Completed", "estimated_waste_kg": 2, "outcome": "Salvage"},
+        {
+            "status": "Completed",
+            "estimated_waste_kg": 2,
+            "outcome": "Recycle / dispose responsibly",
+        },
         {"status": "Open", "estimated_waste_kg": 50, "outcome": "Rehome"},
     ]
     assert impact_summary(rescues) == {
-        "items_rescued": 2,
-        "waste_avoided_kg": 3.2,
+        "items_rescued": 1,
+        "waste_avoided_kg": 1.2,
         "purchases_avoided": 1,
+        "responsible_exits": 1,
     }

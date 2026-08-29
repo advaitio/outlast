@@ -40,12 +40,18 @@ def award_for(
 
 def impact_summary(rescues: list[dict]) -> dict[str, float | int]:
     completed = [rescue for rescue in rescues if rescue.get("status") == "Completed"]
+    rescued = [rescue for rescue in completed if rescue.get("outcome") in {"Repair", "Rehome"}]
     return {
-        "items_rescued": len(completed),
+        "items_rescued": len(rescued),
         "waste_avoided_kg": round(
-            sum(float(rescue.get("estimated_waste_kg", 0)) for rescue in completed), 1
+            sum(float(rescue.get("estimated_waste_kg", 0)) for rescue in rescued), 1
         ),
         "purchases_avoided": sum(
-            1 for rescue in completed if rescue.get("outcome") in {"Repair", "Rehome"}
+            1 for rescue in rescued if rescue.get("outcome") in {"Repair", "Rehome"}
+        ),
+        "responsible_exits": sum(
+            1
+            for rescue in completed
+            if rescue.get("outcome") == "Recycle / dispose responsibly"
         ),
     }

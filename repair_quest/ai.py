@@ -8,13 +8,26 @@ from typing import Any
 
 from openai import OpenAI
 
-from repair_quest.models import Difficulty, RescueAction, RescueAnalysis
+from repair_quest.models import Difficulty, DisposalGuidance, RescueAction, RescueAnalysis
 
 SYSTEM_PROMPT = """You create safe, encouraging rescues for a community reuse game.
-Choose the best way to keep the item in circulation: Repair, Rehome, or Salvage.
+Choose the best way to keep the item in circulation: Repair or Rehome.
 Do not provide detailed electrical or hazardous repair instructions. Give only one safe first step.
 Estimate waste conservatively. Keep every text field concise and suitable for a public
 rescue card."""
+
+SINGAPORE_EWASTE_URL = (
+    "https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/"
+    "e-waste-management/where-to-recycle-e-waste"
+)
+DISPOSAL_SYSTEM_PROMPT = """You provide concise, safety-first, owner-only disposal guidance
+for Singapore.
+Use only these general routes: NEA/ALBA e-waste collection for electronics and batteries,
+retailer take-back or Town Council bulky-item services for large appliances, or the official
+NEA recycling guide for general household items. Do not invent collection locations, rules,
+or hazardous handling instructions. For batteries, say not to use general or blue recycling
+bins and to tape exposed terminals or wires before recycling. Keep the advice practical and
+avoid claiming the item is recyclable when uncertain."""
 
 
 def _secret(name: str, default: str = "") -> str:
@@ -77,6 +90,46 @@ def analyze_item(
     return RescueAnalysis.model_validate(json.loads(response.output_text))
 
 
+def disposal_guidance(
+    item_name: str,
+    description: str,
+    image_bytes: bytes | None = None,
+    mime_type: str = "image/jpeg",
+) -> DisposalGuidance:
+    """Create Singapore-specific disposal guidance, with a safe offline fallback."""
+    if not ai_available():
+        return fallback_disposal_guidance(item_name, description)
+
+    content: list[dict[str, Any]] = [
+        {"type": "input_text", "text": f"Item: {item_name}\nDescription: {description}"}
+    ]
+    if image_bytes:
+        content.append(
+            {
+                "type": "input_image",
+                "image_url": _data_url(image_bytes, mime_type),
+                "detail": "low",
+            }
+        )
+    response = OpenAI(api_key=_secret("OPENAI_API_KEY")).responses.create(
+        model=_secret("OPENAI_MODEL", "gpt-5.6-luna"),
+        instructions=DISPOSAL_SYSTEM_PROMPT,
+        input=[{"role": "user", "content": content}],
+        reasoning={"effort": "low"},
+        text={
+            "format": {
+                "type": "json_schema",
+                "name": "singapore_disposal_guidance",
+                "strict": True,
+                "schema": DisposalGuidance.model_json_schema(),
+            }
+        },
+        store=False,
+    )
+    guidance = DisposalGuidance.model_validate(json.loads(response.output_text))
+    return guidance.model_copy(update={"official_resource_url": SINGAPORE_EWASTE_URL})
+
+
 def fallback_analysis(description: str) -> RescueAnalysis:
     """Keep the demo usable without credentials or network access."""
     text = description.lower()
@@ -84,10 +137,6 @@ def fallback_analysis(description: str) -> RescueAnalysis:
         action = RescueAction.REHOME
         reason = "It appears usable and can serve someone else without requiring a replacement."
         step = "Clean it, confirm it works, and share its condition with the community."
-    elif any(word in text for word in ("shattered", "burnt", "corroded", "beyond repair")):
-        action = RescueAction.SALVAGE
-        reason = "Useful components may be recovered even if the whole item cannot be repaired."
-        step = "Keep it powered off and identify parts that can be safely removed or recycled."
     else:
         action = RescueAction.REPAIR
         reason = "The description suggests a simple fault may be worth checking before replacement."
@@ -99,10 +148,60 @@ def fallback_analysis(description: str) -> RescueAnalysis:
         item_name=item_name,
         recommended_action=action,
         reason=reason,
-        difficulty=Difficulty.EASY if action != RescueAction.SALVAGE else Difficulty.MEDIUM,
+        difficulty=Difficulty.EASY,
         rescue_title=f"Give this {item_name.lower()} a second chance",
         suggested_next_step=step,
         estimated_waste_kg=1.0,
+    )
+
+
+def fallback_disposal_guidance(item_name: str, description: str) -> DisposalGuidance:
+    """Safe, deterministic Singapore guidance when the OpenAI key is unavailable."""
+    text = f"{item_name} {description}".lower()
+    battery_words = ("battery", "lithium", "power bank", "rechargeable")
+    electronic_words = (
+        "fan", "lamp", "kettle", "toaster", "keyboard", "headphone", "charger", "cable",
+        "computer", "phone", "electronic", "electric",
+    )
+    if any(word in text for word in battery_words):
+        return DisposalGuidance(
+            category="Battery or battery-powered item",
+            recommendation="Use an NEA/ALBA battery or e-waste collection point in Singapore.",
+            preparation_steps=[
+                "Remove the battery if it can be done safely.",
+                "Tape exposed battery terminals or wires.",
+                "Seal a leaking battery in a leak-proof bag or container.",
+            ],
+            safety_note="Do not put batteries in general waste or blue recycling bins.",
+            official_resource_url=SINGAPORE_EWASTE_URL,
+        )
+    if any(word in text for word in electronic_words):
+        return DisposalGuidance(
+            category="Electronic waste",
+            recommendation=(
+                "Take this item to a Singapore e-waste collection programme or an accepted "
+                "collection point."
+            ),
+            preparation_steps=[
+                "Unplug the item and remove detachable batteries if safe.",
+                "Remove personal data from any storage device.",
+                "Bring cables and accessories only if the collection point accepts them.",
+            ],
+            safety_note="Do not place electrical or electronic equipment in a blue recycling bin.",
+            official_resource_url=SINGAPORE_EWASTE_URL,
+        )
+    return DisposalGuidance(
+        category="Household item",
+        recommendation=(
+            "Check the official Singapore recycling guidance or your Town Council for the "
+            "appropriate route."
+        ),
+        preparation_steps=[
+            "Clean and empty the item before handing it over.",
+            "Separate batteries, electronics, or sharp parts for their proper collection route.",
+        ],
+        safety_note="When unsure, do not place mixed-material items in a blue recycling bin.",
+        official_resource_url="https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/recycling",
     )
 
 

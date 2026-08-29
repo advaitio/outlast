@@ -6,7 +6,13 @@ from uuid import uuid4
 import streamlit as st
 
 from repair_quest import db
-from repair_quest.models import ContributionType, RescueAction, RescueAnalysis, RescueStatus
+from repair_quest.models import (
+    ContributionType,
+    DisposalGuidance,
+    RescueAnalysis,
+    RescueOutcome,
+    RescueStatus,
+)
 from repair_quest.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
 from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
@@ -68,6 +74,7 @@ def create_rescue(
         "solvers": [],
         "solver_xp_awards": {},
         "solver_streak_multipliers": {},
+        "disposal_guidance": None,
         "image_bytes": image_bytes,
         "image_mime_type": image_mime_type,
         "after_image_bytes": None,
@@ -125,9 +132,19 @@ def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
     return awarded, streak, multiplier
 
 
+def save_disposal_guidance(rescue_id: str, guidance: DisposalGuidance) -> None:
+    rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
+    if rescue["owner"] != st.session_state.current_player:
+        raise PermissionError("Only the original poster can view this disposal guidance.")
+    if rescue["status"] == RescueStatus.COMPLETED.value:
+        raise ValueError("This rescue has already been completed.")
+    payload = guidance.model_dump(mode="json")
+    update_rescue(rescue_id, disposal_guidance=payload)
+
+
 def complete_rescue(
     rescue_id: str,
-    outcome: RescueAction,
+    outcome: RescueOutcome,
     solvers: list[str],
     after_image_bytes: bytes | None = None,
     after_image_mime_type: str | None = None,
@@ -138,10 +155,14 @@ def complete_rescue(
     if rescue["owner"] != st.session_state.current_player:
         raise PermissionError("Only the original poster can complete this rescue.")
     selected_solvers = list(dict.fromkeys(solvers))
-    if not selected_solvers:
+    if outcome == RescueOutcome.RECYCLE_DISPOSE and selected_solvers:
+        raise ValueError("A responsible disposal outcome cannot award solver XP.")
+    if outcome != RescueOutcome.RECYCLE_DISPOSE and not selected_solvers:
         raise ValueError("Select at least one solver.")
     if any(player not in PLAYERS for player in selected_solvers):
         raise ValueError("Select solvers from the listed community members.")
+    if outcome == RescueOutcome.RECYCLE_DISPOSE and not rescue.get("disposal_guidance"):
+        raise ValueError("Get disposal guidance in My rescues before completing this outcome.")
     completion_award = _award_preview(rescue["owner"], COMPLETER_XP)
     solver_awards = {player: _award_preview(player, SOLVER_XP) for player in selected_solvers}
     changes = {

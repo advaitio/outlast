@@ -54,14 +54,14 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="keyboard-004",
-            title="Harvest useful keys from a tired keyboard",
+            title="Find a new home for a tired keyboard",
             item_name="Mechanical keyboard",
             description="The circuit board is damaged, but many switches and keycaps are usable.",
             owner="Sam",
-            action=RescueAction.SALVAGE,
+            action=RescueAction.REHOME,
             difficulty=Difficulty.MEDIUM,
             estimated_waste_kg=0.9,
-            next_step="Disconnect it and sort reusable keycaps, switches, and cable.",
+            next_step="Clean it, note the damaged keys, and offer it as a project keyboard.",
             contributions=[
                 Contribution(
                     player="Maya",
@@ -107,14 +107,16 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="toaster-008",
-            title="Save the toaster's useful parts",
+            title="Give this toaster one safe repair attempt",
             item_name="Two-slice toaster",
             description="Heating element is broken; casing and lever are usable.",
             owner="Noah",
-            action=RescueAction.SALVAGE,
+            action=RescueAction.REPAIR,
             difficulty=Difficulty.HARD,
             estimated_waste_kg=1.4,
-            next_step="Keep it unplugged and identify externally removable parts only.",
+            next_step=(
+                "Keep it unplugged and check its manual or a repair service before replacement."
+            ),
         ),
     ]
     return [rescue.model_dump(mode="json") for rescue in rescues]

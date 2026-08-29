@@ -8,7 +8,12 @@ from pydantic import BaseModel, ConfigDict, Field
 class RescueAction(StrEnum):
     REPAIR = "Repair"
     REHOME = "Rehome"
-    SALVAGE = "Salvage"
+
+
+class RescueOutcome(StrEnum):
+    REPAIR = "Repair"
+    REHOME = "Rehome"
+    RECYCLE_DISPOSE = "Recycle / dispose responsibly"
 
 
 class Difficulty(StrEnum):
@@ -38,6 +43,18 @@ class RescueAnalysis(BaseModel):
     estimated_waste_kg: float = Field(ge=0.05, le=100)
 
 
+class DisposalGuidance(BaseModel):
+    """Owner-only, Singapore-specific next steps for an item that cannot be kept."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    category: str = Field(description="Plain-language disposal category")
+    recommendation: str = Field(description="Short Singapore-specific recommendation")
+    preparation_steps: list[str] = Field(min_length=1, max_length=4)
+    safety_note: str = Field(description="One important safety note")
+    official_resource_url: str = Field(description="Relevant official Singapore resource")
+
+
 class Contribution(BaseModel):
     player: str
     message: str = Field(min_length=1, max_length=280)
@@ -58,7 +75,7 @@ class Rescue(BaseModel):
     next_step: str
     status: RescueStatus = RescueStatus.OPEN
     contributions: list[Contribution] = Field(default_factory=list)
-    outcome: RescueAction | None = None
+    outcome: RescueOutcome | None = None
     completed_by: str | None = None
     completion_xp_award: int = Field(default=0, ge=0)
     completion_streak_multiplier: float | None = Field(default=None, ge=1, le=1.5)

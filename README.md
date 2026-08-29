@@ -1,6 +1,6 @@
 # Repair Quest
 
-Repair Quest is a small social rescue game built for the LifeHack hackathon. Before throwing away or replacing an item, a user posts it as a rescue opportunity and asks their community to help **repair, rehome, or salvage** it.
+Repair Quest is a small social rescue game built for the LifeHack hackathon. Before throwing away or replacing an item, a user posts it as a rescue opportunity and asks their community to help **repair or rehome** it.
 
 The MVP is intentionally focused on one measurable behaviour:
 
@@ -9,8 +9,9 @@ The MVP is intentionally focused on one measurable behaviour:
 ## What is already working
 
 - **Discover:** an eight-rescue board where community members share useful suggestions.
-- **Rescue:** photo and description input, AI-assisted rescue generation, posting, and owner-led completion.
-- **Impact:** shared waste impact plus an individual XP leaderboard and streak multipliers.
+- **Rescue:** photo and description input, AI-assisted Repair/Rehome generation, posting, and owner-led completion.
+- **Responsible exit:** private, rescue-specific recycle/dispose guidance when an owner has to let an item go.
+- **Impact:** shared waste impact, responsible-exit tracking, and an individual XP leaderboard.
 - **Demo mode:** fake users and a deterministic AI fallback, so the full flow works without credentials.
 - **Cloud-ready setup:** OpenAI secrets template, Supabase schema, Streamlit theme, tests, linting, and GitHub Actions.
 
@@ -41,7 +42,8 @@ Never commit `.streamlit/secrets.toml` or `.env`.
 2. Post the rescue to the shared board.
 3. Change the demo player in the sidebar and post a useful suggestion on **Discover**.
 4. Switch to the original poster, complete the rescue as Repaired, and select one or more solvers.
-5. Open **Impact** to show community impact, individual XP, and streaks.
+5. Alternatively, open **My rescues**, select **I have to let this item go**, and get owner-only disposal guidance.
+6. Open **Impact** to show community impact, individual XP, and streaks.
 
 ## Scoring
 

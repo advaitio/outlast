@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 
 from repair_quest import ai
-from repair_quest.ai import fallback_analysis
+from repair_quest.ai import fallback_analysis, fallback_disposal_guidance
 from repair_quest.models import RescueAction
 
 
@@ -10,9 +10,9 @@ def test_fallback_recommends_rehome_for_working_item() -> None:
     assert result.recommended_action == RescueAction.REHOME
 
 
-def test_fallback_recommends_salvage_for_badly_damaged_item() -> None:
+def test_fallback_keeps_badly_damaged_item_on_the_repair_path() -> None:
     result = fallback_analysis("The toaster casing is burnt and beyond repair")
-    assert result.recommended_action == RescueAction.SALVAGE
+    assert result.recommended_action == RescueAction.REPAIR
 
 
 def test_fallback_defaults_to_repair() -> None:
@@ -54,3 +54,16 @@ def test_openai_schema_forbids_additional_properties() -> None:
     schema = ai.RescueAnalysis.model_json_schema()
 
     assert schema["additionalProperties"] is False
+
+
+def test_disposal_schema_forbids_additional_properties() -> None:
+    schema = ai.DisposalGuidance.model_json_schema()
+
+    assert schema["additionalProperties"] is False
+
+
+def test_disposal_fallback_gives_battery_safety_guidance() -> None:
+    result = fallback_disposal_guidance("Power bank", "The lithium battery is swollen.")
+
+    assert result.category == "Battery or battery-powered item"
+    assert "Do not put batteries" in result.safety_note
