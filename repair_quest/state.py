@@ -58,6 +58,16 @@ def refresh_from_database() -> None:
     st.session_state.persistence_error = None
 
 
+def repairs_helped_by(rescues: list[dict], player: str) -> list[dict]:
+    """Return completed repairs where the player was recognised as a solver."""
+    return [
+        rescue
+        for rescue in rescues
+        if rescue.get("status") == RescueStatus.COMPLETED.value
+        and player in rescue.get("solvers", [])
+    ]
+
+
 def create_rescue(
     analysis: RescueAnalysis,
     description: str,

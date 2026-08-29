@@ -15,6 +15,7 @@ from repair_quest.state import (
     add_suggestion,
     complete_rescue,
     create_rescue,
+    repairs_helped_by,
     save_disposal_guidance,
 )
 
@@ -41,6 +42,8 @@ def test_completion_awards_xp_to_the_original_poster() -> None:
     assert rescue["completed_by"] == "Maya"
     assert rescue["completion_xp_award"] == 55
     assert rescue["solver_streak_multipliers"]["Noah"] == 1.25
+    assert repairs_helped_by(st.session_state.rescues, "Noah") == [rescue]
+    assert repairs_helped_by(st.session_state.rescues, "Alex") == []
 
 
 def test_failed_persistence_does_not_change_session_state(monkeypatch: pytest.MonkeyPatch) -> None:

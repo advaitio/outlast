@@ -26,6 +26,7 @@ from repair_quest.state import (
     create_rescue,
     initialise_state,
     refresh_from_database,
+    repairs_helped_by,
     save_disposal_guidance,
 )
 
@@ -83,6 +84,42 @@ def rescue_card(rescue: dict) -> None:
                     st.rerun()
                 except (ValueError, db.PersistenceError) as exc:
                     st.warning(str(exc))
+
+
+def show_rescue_photos(rescue: dict) -> None:
+    before_image = rescue.get("image_bytes") or rescue.get("image_url")
+    after_image = rescue.get("after_image_bytes") or rescue.get("after_image_url")
+    if not before_image and not after_image:
+        return
+    image_columns = st.columns(2)
+    if before_image:
+        image_columns[0].image(before_image, caption="Before", width="stretch")
+    if after_image:
+        image_columns[1].image(after_image, caption="After", width="stretch")
+
+
+def helped_rescue_card(rescue: dict, player: str) -> None:
+    with st.container(border=True):
+        st.subheader(f":material/handyman: {rescue['title']}")
+        st.caption(f"Posted by {rescue['owner']} · {rescue['difficulty']} repair")
+        solver_xp = rescue.get("solver_xp_awards", {}).get(player, 0)
+        st.success(
+            f"Repair completed · You earned {solver_xp} XP",
+            icon=":material/check_circle:",
+        )
+        st.write(rescue["description"])
+        player_contributions = [
+            contribution
+            for contribution in rescue.get("contributions", [])
+            if contribution.get("player") == player
+        ]
+        st.markdown("**Your contribution**")
+        if player_contributions:
+            for contribution in player_contributions:
+                st.write(contribution["message"])
+        else:
+            st.caption("You were recognised as a solver without a written suggestion.")
+        show_rescue_photos(rescue)
 
 
 def discover_page() -> None:
@@ -301,14 +338,7 @@ def impact_page() -> None:
                 st.success(
                     f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}"
                 )
-            before_image = rescue.get("image_bytes") or rescue.get("image_url")
-            after_image = rescue.get("after_image_bytes") or rescue.get("after_image_url")
-            if before_image or after_image:
-                image_columns = st.columns(2)
-                if before_image:
-                    image_columns[0].image(before_image, caption="Before", width="stretch")
-                if after_image:
-                    image_columns[1].image(after_image, caption="After", width="stretch")
+            show_rescue_photos(rescue)
 
 
 def disposal_panel(rescue: dict) -> None:
@@ -371,25 +401,59 @@ def disposal_panel(rescue: dict) -> None:
 
 def my_rescues_page() -> None:
     st.title("My rescues")
-    st.caption("Track the items you have put up for community rescue.")
+    st.caption("Track repair requests you posted and repairs you helped solve.")
     show_flash()
     player = st.session_state.current_player
-    rescues = [rescue for rescue in st.session_state.rescues if rescue["owner"] == player]
-    if not rescues:
-        st.info("You have not posted a rescue yet. Start one from the Rescue page.")
-        return
+    posted_rescues = [
+        rescue for rescue in st.session_state.rescues if rescue["owner"] == player
+    ]
+    helped_rescues = repairs_helped_by(st.session_state.rescues, player)
+    posted_tab, helped_tab = st.tabs(
+        [f"Posted by me ({len(posted_rescues)})", f"Helped by me ({len(helped_rescues)})"]
+    )
 
-    active_count = sum(rescue["status"] != RescueStatus.COMPLETED.value for rescue in rescues)
-    metrics = st.columns(3)
-    metrics[0].metric("Posted", len(rescues))
-    metrics[1].metric("Active", active_count)
-    metrics[2].metric("Completed", len(rescues) - active_count)
-    for index in range(0, len(rescues), 2):
-        columns = st.columns(2)
-        for column, rescue in zip(columns, rescues[index : index + 2], strict=False):
-            with column:
-                rescue_card(rescue)
-                disposal_panel(rescue)
+    with posted_tab:
+        if not posted_rescues:
+            st.info("You have not posted a repair request yet. Start one from Rescue.")
+        else:
+            active_count = sum(
+                rescue["status"] != RescueStatus.COMPLETED.value
+                for rescue in posted_rescues
+            )
+            metrics = st.columns(3)
+            metrics[0].metric("Posted", len(posted_rescues))
+            metrics[1].metric("Active", active_count)
+            metrics[2].metric("Completed", len(posted_rescues) - active_count)
+            for index in range(0, len(posted_rescues), 2):
+                columns = st.columns(2)
+                for column, rescue in zip(
+                    columns, posted_rescues[index : index + 2], strict=False
+                ):
+                    with column:
+                        rescue_card(rescue)
+                        disposal_panel(rescue)
+
+    with helped_tab:
+        if not helped_rescues:
+            st.info(
+                "No completed repairs yet. When an owner recognises you as a solver, "
+                "the repair will appear here."
+            )
+        else:
+            total_solver_xp = sum(
+                rescue.get("solver_xp_awards", {}).get(player, 0)
+                for rescue in helped_rescues
+            )
+            helped_metrics = st.columns(2)
+            helped_metrics[0].metric("Repairs helped", len(helped_rescues))
+            helped_metrics[1].metric("Solver XP earned", total_solver_xp)
+            for index in range(0, len(helped_rescues), 2):
+                columns = st.columns(2)
+                for column, rescue in zip(
+                    columns, helped_rescues[index : index + 2], strict=False
+                ):
+                    with column:
+                        helped_rescue_card(rescue, player)
 
 
 initialise_state()
