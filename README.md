@@ -60,12 +60,12 @@ Impact values are deliberately presented as estimates. They are suitable for a p
 ```text
 Streamlit app
 ├── OpenAI Responses API (optional photo + text analysis)
-├── Streamlit session state (working hackathon data store)
+├── Streamlit session state (temporary UI cache)
 ├── Supabase PostgreSQL + Storage (prepared next integration)
 └── Python scoring rules
 ```
 
-The current build uses session state so the social loop is demoable now. `supabase/schema.sql` prepares the shared database and image bucket, but persistence is not yet connected to the UI.
+When Supabase credentials are configured, rescues, suggestions, solver awards, activity days, and player XP are persisted remotely. Without credentials or if the project is unavailable, the app falls back to seeded session-state demo data.
 
 ## Project map
 
@@ -84,7 +84,7 @@ tests/                       Fast unit tests
 ## Highest-priority next steps
 
 1. Add the OpenAI project key and test with 5–10 real item photos; tune only the prompt if results are unclear.
-2. Create a Supabase project, run `supabase/schema.sql`, and replace session-state writes with a small repository layer.
+2. Create a Supabase project and run `supabase/schema.sql`.
 3. Add image upload to the `rescue-images` bucket and save its returned path on each rescue.
 4. Move streak and XP awarding into a transactional database function before enabling real accounts.
 5. Polish the single fan rescue demo, deploy to Streamlit Community Cloud, and rehearse a 2–3 minute pitch.
