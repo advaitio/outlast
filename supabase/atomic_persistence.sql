@@ -66,6 +66,24 @@ grant execute on function public.add_rescue_suggestion(uuid, uuid, text, integer
 grant execute on function public.complete_rescue_with_awards(uuid, uuid, text, integer, numeric, jsonb, date, text)
   to anon, authenticated;
 
+create or replace function public.delete_open_rescue(p_rescue_id uuid, p_owner_id uuid)
+returns void language plpgsql security definer set search_path = public as $$
+declare v_owner_id uuid; v_status text;
+begin
+  select owner_id, status into v_owner_id, v_status
+  from public.rescues where id = p_rescue_id for update;
+  if v_owner_id is distinct from p_owner_id then
+    raise exception 'Only the item owner can delete it';
+  end if;
+  if v_status is distinct from 'Open' then
+    raise exception 'Only open items can be deleted';
+  end if;
+  delete from public.rescues where id = p_rescue_id;
+end;
+$$;
+
+grant execute on function public.delete_open_rescue(uuid, uuid) to anon, authenticated;
+
 drop policy if exists "Prototype upload rescue images" on storage.objects;
 create policy "Prototype upload rescue images" on storage.objects for insert
 with check (bucket_id = 'rescue-images');

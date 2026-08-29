@@ -183,6 +183,20 @@ def create_rescue(rescue: dict[str, Any]) -> bool:
         raise PersistenceError("Could not save the new item to Supabase.") from error
 
 
+def delete_rescue(rescue_id: str, owner: str) -> bool:
+    """Delete only an open item owned by the selected prototype player."""
+    if not available():
+        return False
+    try:
+        _client().rpc(
+            "delete_open_rescue",
+            {"p_rescue_id": rescue_id, "p_owner_id": _player_id(owner)},
+        ).execute()
+        return True
+    except Exception as error:
+        raise PersistenceError("Could not delete this item from Supabase.") from error
+
+
 def add_contribution(rescue_id: str, player: str, message: str, xp: int, multiplier: float) -> bool:
     if not available():
         return False

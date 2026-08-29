@@ -112,6 +112,19 @@ def update_rescue(rescue_id: str, **changes: object) -> None:
     raise KeyError(f"Item not found: {rescue_id}")
 
 
+def delete_rescue(rescue_id: str) -> None:
+    """Delete an unresolved item posted by the current prototype user."""
+    rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
+    if rescue["owner"] != st.session_state.current_player:
+        raise PermissionError("Only the original poster can delete this item.")
+    if rescue["status"] != RescueStatus.OPEN.value:
+        raise ValueError("Resolved items cannot be deleted.")
+    db.delete_rescue(rescue_id, rescue["owner"])
+    st.session_state.rescues = [
+        item for item in st.session_state.rescues if item["id"] != rescue_id
+    ]
+
+
 def _award_preview(player: str, base_xp: int) -> tuple[int, int, float]:
     stats = st.session_state.player_stats[player]
     today = date.today().isoformat()
