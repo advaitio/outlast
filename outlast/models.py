@@ -42,7 +42,11 @@ class RescueAnalysis(BaseModel):
     pre_post_guidance: PrePostGuidance
     reason: str = Field(description="One concise reason for the pre-post guidance")
     difficulty: Difficulty
-    rescue_title: str = Field(description="Short, upbeat item title")
+    rescue_title: str = Field(
+        min_length=3,
+        max_length=60,
+        description="Distinctive 3-to-8-word listing title naming the specific item",
+    )
     suggested_next_step: str = Field(description="One safe, simple next step")
     estimated_waste_kg: float = Field(ge=0.05, le=100)
 

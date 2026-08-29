@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from html import escape
+
 import streamlit as st
 
 from outlast import db
@@ -43,11 +45,6 @@ def show_flash() -> None:
         st.warning(st.session_state.persistence_error)
 
 
-def navigate(page: str) -> None:
-    st.session_state.page = page
-    st.rerun()
-
-
 def top_bar() -> None:
     st.markdown(
         """
@@ -55,32 +52,82 @@ def top_bar() -> None:
         .outlast-brand { font-size: 2rem; font-weight: 800; letter-spacing: -0.06em; }
         .outlast-tagline { color: #6b7280; margin-top: -0.45rem; }
         .listing-placeholder {
-            height: 112px; display: flex; align-items: center; justify-content: center;
-            border-radius: 0.7rem; background: #eff6ff; color: #2563eb; font-size: 2rem;
+            height: 112px; display: flex; flex-direction: column; gap: 0.25rem;
+            align-items: center; justify-content: center; border-radius: 0.7rem;
+            background: #eff6ff; color: #2563eb; font-size: 1.8rem;
+        }
+        .listing-placeholder span {font-size: 0.72rem; font-weight: 700; color: #64748b;}
+        .leaderboard-card {
+            display: flex; align-items: center; gap: 0.85rem; width: 100%;
+            padding: 0.85rem 1rem; margin-bottom: 0.65rem;
+            border: 1px solid #dbe8d5; border-radius: 12px; background: #ffffff;
+            box-shadow: 0 3px 10px rgba(24, 58, 44, 0.06);
+        }
+        .leaderboard-card.leader {
+            border-color: #f2c66d;
+            background: linear-gradient(100deg, #fffaf0 0%, #ffffff 70%);
+        }
+        .leaderboard-rank {
+            display: flex; align-items: center; justify-content: center;
+            flex: 0 0 2.35rem; height: 2.35rem; border-radius: 10px;
+            background: #edf5e7; color: #28543e; font-size: 0.9rem; font-weight: 800;
+        }
+        .leaderboard-card.leader .leaderboard-rank {background: #fff0c7; color: #8b5b00;}
+        .leaderboard-person {min-width: 0; flex: 1;}
+        .leaderboard-name {font-size: 1rem; font-weight: 750; color: #183a2c;}
+        .leaderboard-you {
+            margin-left: 0.4rem; padding: 0.1rem 0.42rem; border-radius: 999px;
+            background: #fff0e7; color: #b44319; font-size: 0.65rem;
+            font-weight: 800; text-transform: uppercase;
+        }
+        .leaderboard-streak {margin-top: 0.12rem; color: #6a7d73; font-size: 0.78rem;}
+        .leaderboard-score {
+            text-align: right; color: #183a2c; font-size: 1.05rem; font-weight: 800;
+        }
+        .leaderboard-score span {
+            display: block; color: #7b8a82; font-size: 0.66rem; font-weight: 700;
+            letter-spacing: 0.08em; text-transform: uppercase;
         }
         </style>
         """,
         unsafe_allow_html=True,
     )
-    brand, _, menu = st.columns([5, 4, 2], vertical_alignment="center")
-    with brand:
-        st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="outlast-tagline">Give broken things one community repair attempt.</div>',
-            unsafe_allow_html=True,
+    with st.container(border=True):
+        brand, navigation, identity, refresh = st.columns(
+            [3.2, 4.2, 2, 0.6], vertical_alignment="center"
         )
-    with menu, st.popover(":material/menu: Menu", use_container_width=True):
-        st.caption("Prototype identity")
-        st.selectbox("Playing as", PLAYERS, key="current_player")
-        stats = st.session_state.player_stats[st.session_state.current_player]
-        st.caption(f"{stats['xp']} XP · {streak_length(stats['activity_dates'])}-day streak")
-        st.divider()
-        for page in PAGES:
-            if st.button(page, key=f"nav-{page}", use_container_width=True):
-                navigate(page)
-        if db.available() and st.button(
-            "Refresh community data", icon=":material/refresh:", use_container_width=True
-        ):
+        with brand:
+            st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="outlast-tagline">One community repair attempt.</div>',
+                unsafe_allow_html=True,
+            )
+        with navigation:
+            st.segmented_control(
+                "Navigation",
+                PAGES,
+                key="page",
+                label_visibility="collapsed",
+                width="stretch",
+            )
+        with identity:
+            st.selectbox(
+                "Playing as",
+                PLAYERS,
+                key="current_player",
+                label_visibility="collapsed",
+            )
+            stats = st.session_state.player_stats[st.session_state.current_player]
+            st.caption(f"{stats['xp']} XP · {streak_length(stats['activity_dates'])}-day streak")
+        with refresh:
+            refresh_clicked = st.button(
+                ":material/refresh:",
+                key="refresh-community-data",
+                help="Refresh community data",
+                disabled=not db.available(),
+                use_container_width=True,
+            )
+        if refresh_clicked:
             try:
                 refresh_from_database()
                 st.session_state.flash = "Latest community data loaded."
@@ -100,7 +147,8 @@ def show_listing_image(rescue: dict, full: bool = False) -> None:
         st.image(image, width="stretch" if full else 145)
     else:
         st.markdown(
-            '<div class="listing-placeholder">:material/build:</div>', unsafe_allow_html=True
+            '<div class="listing-placeholder">🛠️<span>No photo</span></div>',
+            unsafe_allow_html=True,
         )
 
 
@@ -415,10 +463,24 @@ def dashboard_page() -> None:
     user_rank = next(rank for rank, (name, _) in enumerate(leaderboard, start=1) if name == player)
     st.caption(f"You are currently ranked #{user_rank} of {len(leaderboard)} players.")
     for rank, (name, player_stats) in enumerate(leaderboard[:5], start=1):
-        marker = " ← You" if name == player else ""
-        st.write(
-            f"**#{rank} {name}** — {player_stats['xp']} XP · "
-            f"{streak_length(player_stats['activity_dates'])}-day streak{marker}"
+        rank_label = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
+        current_player_badge = (
+            '<span class="leaderboard-you">You</span>' if name == player else ""
+        )
+        leader_class = " leader" if rank == 1 else ""
+        streak = streak_length(player_stats["activity_dates"])
+        st.markdown(
+            f"""
+            <div class="leaderboard-card{leader_class}">
+                <div class="leaderboard-rank">{rank_label}</div>
+                <div class="leaderboard-person">
+                    <div class="leaderboard-name">{escape(name)}{current_player_badge}</div>
+                    <div class="leaderboard-streak">🔥 {streak}-day streak</div>
+                </div>
+                <div class="leaderboard-score">{player_stats['xp']}<span>XP</span></div>
+            </div>
+            """,
+            unsafe_allow_html=True,
         )
     st.caption(
         f"Contribution: {CONTRIBUTOR_XP} XP · Resolving: {COMPLETER_XP} XP · Solver: {SOLVER_XP} XP"
