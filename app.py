@@ -31,6 +31,12 @@ def rescue_card(rescue: dict) -> None:
         "Salvage": ":material/recycling:",
     }
     with st.container(border=True):
+        if rescue.get("image_bytes"):
+            st.image(
+                rescue["image_bytes"],
+                caption=f"{rescue['item_name']} submitted for rescue",
+                use_container_width=True,
+            )
         st.subheader(f"{icons[rescue['action']]} {rescue['title']}")
         st.caption(f"Posted by {rescue['owner']} · {rescue['status']}")
         st.write(rescue["description"])
@@ -38,13 +44,20 @@ def rescue_card(rescue: dict) -> None:
             f"{rescue['action']} · {rescue['difficulty']} · about "
             f"{rescue['estimated_waste_kg']} kg of waste potentially avoided"
         )
-        st.info(f"Safe first step: {rescue['next_step']}", icon=":material/lightbulb:")
+        if rescue["owner"] == st.session_state.current_player:
+            st.info(
+                f"AI suggestion · Only visible to you: {rescue['next_step']}",
+                icon=":material/auto_awesome:",
+            )
 
         contributions = rescue["contributions"]
         with st.expander(f"Suggestions ({len(contributions)})"):
             if contributions:
                 for contribution in contributions:
-                    st.write(f"**{contribution['player']}**: {contribution['message']}")
+                    st.write(
+                        f"👤 **Person suggestion · {contribution['player']}**: "
+                        f"{contribution['message']}"
+                    )
             else:
                 st.caption("No suggestions yet. Share a useful next step.")
             with st.form(f"suggestion-{rescue['id']}", clear_on_submit=True):
@@ -82,13 +95,17 @@ def discover_page() -> None:
 
 
 def analysis_panel(analysis: RescueAnalysis) -> None:
+    st.caption("🤖 AI-generated rescue suggestion")
     st.subheader(analysis.rescue_title)
     left, middle, right = st.columns(3)
     left.metric("Recommended path", analysis.recommended_action.value)
     middle.metric("Difficulty", analysis.difficulty.value)
     right.metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
     st.write(analysis.reason)
-    st.info(f"Safe first step: {analysis.suggested_next_step}", icon=":material/lightbulb:")
+    st.info(
+        f"AI suggestion · Safe first step: {analysis.suggested_next_step}",
+        icon=":material/auto_awesome:",
+    )
 
 
 def rescue_page() -> None:
@@ -121,15 +138,29 @@ def rescue_page() -> None:
                             image.type if image else "image/jpeg",
                         ).model_dump(mode="json")
                         st.session_state.analysis_description = description.strip()
+                        st.session_state.analysis_image_bytes = (
+                            image.getvalue() if image else None
+                        )
+                        st.session_state.analysis_image_mime = image.type if image else None
                     except Exception as exc:
                         st.error(f"AI analysis failed: {exc}")
         if st.session_state.analysis:
             analysis = RescueAnalysis.model_validate(st.session_state.analysis)
             analysis_panel(analysis)
+            if st.session_state.analysis_image_bytes:
+                st.caption("The uploaded photo will be attached to this rescue.")
             if st.button("Post to rescue board", type="primary", icon=":material/publish:"):
                 try:
-                    rescue = create_rescue(analysis, st.session_state.analysis_description)
+                    rescue = create_rescue(
+                        analysis,
+                        st.session_state.analysis_description,
+                        st.session_state.analysis_image_bytes,
+                        st.session_state.analysis_image_mime,
+                    )
                     st.session_state.analysis = None
+                    st.session_state.analysis_description = ""
+                    st.session_state.analysis_image_bytes = None
+                    st.session_state.analysis_image_mime = None
                     st.session_state.flash = f"“{rescue['title']}” is now on the rescue board."
                     st.rerun()
                 except db.PersistenceError as exc:
@@ -159,12 +190,25 @@ def rescue_page() -> None:
                         "Each receives Solver XP."
                     ),
                 )
+                after_image = st.file_uploader(
+                    "After photo (optional)",
+                    type=["jpg", "jpeg", "png", "webp"],
+                    key="after-photo",
+                )
+                if after_image:
+                    st.image(after_image, caption="Completed rescue", use_container_width=True)
                 completed = st.form_submit_button(
                     "Complete rescue", type="primary", icon=":material/check_circle:"
                 )
             if completed:
                 try:
-                    completion_award, solver_awards = complete_rescue(rescue_id, outcome, solvers)
+                    completion_award, solver_awards = complete_rescue(
+                        rescue_id,
+                        outcome,
+                        solvers,
+                        after_image.getvalue() if after_image else None,
+                        after_image.type if after_image else None,
+                    )
                     award_text = ", ".join(
                         f"{player} +{xp[0]} XP" for player, xp in solver_awards.items()
                     )
@@ -222,6 +266,36 @@ def impact_page() -> None:
         for rescue in completed:
             solver_text = ", ".join(rescue["solvers"])
             st.success(f"**{rescue['item_name']}** — {rescue['outcome']} · solved by {solver_text}")
+            before_image = rescue.get("image_bytes")
+            after_image = rescue.get("after_image_bytes")
+            if before_image or after_image:
+                image_columns = st.columns(2)
+                if before_image:
+                    image_columns[0].image(before_image, caption="Before", use_container_width=True)
+                if after_image:
+                    image_columns[1].image(after_image, caption="After", use_container_width=True)
+
+
+def my_rescues_page() -> None:
+    st.title("My rescues")
+    st.caption("Track the items you have put up for community rescue.")
+    show_flash()
+    player = st.session_state.current_player
+    rescues = [rescue for rescue in st.session_state.rescues if rescue["owner"] == player]
+    if not rescues:
+        st.info("You have not posted a rescue yet. Start one from the Rescue page.")
+        return
+
+    active_count = sum(rescue["status"] != RescueStatus.COMPLETED.value for rescue in rescues)
+    metrics = st.columns(3)
+    metrics[0].metric("Posted", len(rescues))
+    metrics[1].metric("Active", active_count)
+    metrics[2].metric("Completed", len(rescues) - active_count)
+    for index in range(0, len(rescues), 2):
+        columns = st.columns(2)
+        for column, rescue in zip(columns, rescues[index : index + 2], strict=False):
+            with column:
+                rescue_card(rescue)
 
 
 initialise_state()
@@ -229,7 +303,7 @@ initialise_state()
 with st.sidebar:
     st.title("Repair Quest")
     st.caption("Turn throwaways into community wins.")
-    page = st.radio("Go to", ["Discover", "Rescue", "Impact"])
+    page = st.radio("Go to", ["Discover", "Rescue", "My Rescues", "Impact"])
     st.divider()
     st.session_state.current_player = st.selectbox(
         "Playing as", PLAYERS, index=PLAYERS.index(st.session_state.current_player)
@@ -246,5 +320,7 @@ if page == "Discover":
     discover_page()
 elif page == "Rescue":
     rescue_page()
+elif page == "My Rescues":
+    my_rescues_page()
 else:
     impact_page()
