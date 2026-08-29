@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 from pathlib import Path
@@ -21,8 +22,19 @@ Never suggest passing on an unsafe, burnt, leaking, swollen, contaminated, or st
 dangerous item. When evidence is limited, be explicit in the reason and prefer a safe inspection
 or professional assessment over a confident diagnosis. Do not provide detailed electrical or
 hazardous repair instructions. Give only one safe first step appropriate to the guidance. Always
-generate a concise item title because the owner may still choose to post. Estimate waste
-conservatively. Keep every text field concise and suitable for the app."""
+generate a concise item title because the owner may still choose to post.
+
+Title-writing rules:
+- Write a distinctive listing headline of 3 to 8 words and no more than 60 characters.
+- Name the specific item and, when known, hint at its symptom, useful quality, or desired outcome.
+- Vary the construction: use a compact challenge, a question, an action phrase, or light wordplay
+  when it fits the item. Keep the tone natural and helpful, not promotional or childish.
+- Avoid generic repeated formulas such as "Give this [item] a second chance", "Save this item",
+  "Repair quest", or always beginning with "Fix" or "Rescue".
+- Do not use emoji, quotation marks, all caps, hashtags, or a trailing period.
+- The title must not overstate a diagnosis or promise that the item can be repaired.
+
+Estimate waste conservatively. Keep every text field concise and suitable for the app."""
 
 SINGAPORE_EWASTE_URL = (
     "https://www.nea.gov.sg/our-services/waste-management/3r-programmes-and-resources/"
@@ -164,17 +176,103 @@ def fallback_analysis(description: str) -> RescueAnalysis:
         reason = "The description suggests a simple fault may be worth checking before replacement."
         step = "Check the power source, visible connections, and user manual first."
 
-    words = [word.strip(".,!?()[]") for word in description.split() if len(word) > 2]
-    item_name = " ".join(words[:3]).title() if words else "Household item"
+    item_name = _fallback_item_name(description)
     return RescueAnalysis(
         item_name=item_name,
         pre_post_guidance=guidance,
         reason=reason,
         difficulty=Difficulty.EASY,
-        rescue_title=f"Give this {item_name.lower()} a second chance",
+        rescue_title=_fallback_title(item_name, description, guidance),
         suggested_next_step=step,
         estimated_waste_kg=1.0,
     )
+
+
+def _fallback_item_name(description: str) -> str:
+    """Extract a useful household item label for demo mode."""
+    text = description.lower()
+    known_items = (
+        "ceiling fan",
+        "desk fan",
+        "wooden chair",
+        "office chair",
+        "table lamp",
+        "desk lamp",
+        "study lamp",
+        "power bank",
+        "bookshelf",
+        "headphones",
+        "keyboard",
+        "toaster",
+        "kettle",
+        "charger",
+        "laptop",
+        "monitor",
+        "speaker",
+        "blender",
+        "microwave",
+        "vacuum",
+        "bicycle",
+        "chair",
+        "table",
+        "lamp",
+        "fan",
+        "phone",
+    )
+    if item := next((candidate for candidate in known_items if candidate in text), None):
+        return item.title()
+
+    ignored = {
+        "the",
+        "this",
+        "that",
+        "my",
+        "our",
+        "old",
+        "broken",
+        "working",
+        "stopped",
+        "keeps",
+        "will",
+        "does",
+        "not",
+    }
+    words = [
+        word.strip(".,!?()[]")
+        for word in description.split()
+        if len(word.strip(".,!?()[]")) > 2 and word.lower().strip(".,!?()[]") not in ignored
+    ]
+    return " ".join(words[:2]).title() if words else "Household Item"
+
+
+def _fallback_title(
+    item_name: str,
+    description: str,
+    guidance: PrePostGuidance,
+) -> str:
+    """Choose a stable but varied demo title instead of repeating one template."""
+    item = item_name.lower()
+    patterns = {
+        PrePostGuidance.POST_REPAIR: (
+            f"Bring the {item} back",
+            f"Can this {item} be revived?",
+            f"One more try for the {item}",
+            f"The {item} repair challenge",
+            f"Help diagnose this {item}",
+        ),
+        PrePostGuidance.PASS_ON: (
+            f"A new home for this {item}",
+            f"Pass this {item} forward",
+            f"This {item} still has plenty left",
+        ),
+        PrePostGuidance.RESPONSIBLE_EXIT: (
+            f"A safe next step for this {item}",
+            f"Help assess this {item} safely",
+            f"Handle this {item} with care",
+        ),
+    }[guidance]
+    digest = hashlib.sha256(description.strip().lower().encode()).digest()
+    return patterns[digest[0] % len(patterns)][:60].rstrip()
 
 
 def fallback_disposal_guidance(item_name: str, description: str) -> DisposalGuidance:

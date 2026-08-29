@@ -21,6 +21,30 @@ def test_fallback_defaults_to_repair() -> None:
     assert result.pre_post_guidance == PrePostGuidance.POST_REPAIR
 
 
+def test_fallback_titles_are_varied_and_avoid_the_old_template() -> None:
+    descriptions = [
+        "My desk fan stopped spinning",
+        "The wooden chair has a loose leg",
+        "My headphones only play on one side",
+        "The toaster lever will not stay down",
+        "The table lamp keeps flickering",
+    ]
+
+    results = [fallback_analysis(description) for description in descriptions]
+    titles = [result.rescue_title for result in results]
+
+    assert len(set(titles)) >= 3
+    assert all("a second chance" not in title.lower() for title in titles)
+    assert all(len(title) <= 60 for title in titles)
+    assert [result.item_name for result in results] == [
+        "Desk Fan",
+        "Wooden Chair",
+        "Headphones",
+        "Toaster",
+        "Table Lamp",
+    ]
+
+
 def test_photo_is_sent_to_openai_and_structured_result_is_parsed(monkeypatch) -> None:
     captured = {}
 

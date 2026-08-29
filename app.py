@@ -45,11 +45,6 @@ def show_flash() -> None:
         st.warning(st.session_state.persistence_error)
 
 
-def navigate(page: str) -> None:
-    st.session_state.page = page
-    st.rerun()
-
-
 def top_bar() -> None:
     st.markdown(
         """
@@ -57,9 +52,11 @@ def top_bar() -> None:
         .outlast-brand { font-size: 2rem; font-weight: 800; letter-spacing: -0.06em; }
         .outlast-tagline { color: #6b7280; margin-top: -0.45rem; }
         .listing-placeholder {
-            height: 112px; display: flex; align-items: center; justify-content: center;
-            border-radius: 0.7rem; background: #eff6ff; color: #2563eb; font-size: 2rem;
+            height: 112px; display: flex; flex-direction: column; gap: 0.25rem;
+            align-items: center; justify-content: center; border-radius: 0.7rem;
+            background: #eff6ff; color: #2563eb; font-size: 1.8rem;
         }
+        .listing-placeholder span {font-size: 0.72rem; font-weight: 700; color: #64748b;}
         .leaderboard-card {
             display: flex; align-items: center; gap: 0.85rem; width: 100%;
             padding: 0.85rem 1rem; margin-bottom: 0.65rem;
@@ -95,25 +92,42 @@ def top_bar() -> None:
         """,
         unsafe_allow_html=True,
     )
-    brand, _, menu = st.columns([5, 4, 2], vertical_alignment="center")
-    with brand:
-        st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
-        st.markdown(
-            '<div class="outlast-tagline">Give broken things one community repair attempt.</div>',
-            unsafe_allow_html=True,
+    with st.container(border=True):
+        brand, navigation, identity, refresh = st.columns(
+            [3.2, 4.2, 2, 0.6], vertical_alignment="center"
         )
-    with menu, st.popover(":material/menu: Menu", use_container_width=True):
-        st.caption("Prototype identity")
-        st.selectbox("Playing as", PLAYERS, key="current_player")
-        stats = st.session_state.player_stats[st.session_state.current_player]
-        st.caption(f"{stats['xp']} XP · {streak_length(stats['activity_dates'])}-day streak")
-        st.divider()
-        for page in PAGES:
-            if st.button(page, key=f"nav-{page}", use_container_width=True):
-                navigate(page)
-        if db.available() and st.button(
-            "Refresh community data", icon=":material/refresh:", use_container_width=True
-        ):
+        with brand:
+            st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
+            st.markdown(
+                '<div class="outlast-tagline">One community repair attempt.</div>',
+                unsafe_allow_html=True,
+            )
+        with navigation:
+            st.segmented_control(
+                "Navigation",
+                PAGES,
+                key="page",
+                label_visibility="collapsed",
+                width="stretch",
+            )
+        with identity:
+            st.selectbox(
+                "Playing as",
+                PLAYERS,
+                key="current_player",
+                label_visibility="collapsed",
+            )
+            stats = st.session_state.player_stats[st.session_state.current_player]
+            st.caption(f"{stats['xp']} XP · {streak_length(stats['activity_dates'])}-day streak")
+        with refresh:
+            refresh_clicked = st.button(
+                ":material/refresh:",
+                key="refresh-community-data",
+                help="Refresh community data",
+                disabled=not db.available(),
+                use_container_width=True,
+            )
+        if refresh_clicked:
             try:
                 refresh_from_database()
                 st.session_state.flash = "Latest community data loaded."
@@ -133,7 +147,8 @@ def show_listing_image(rescue: dict, full: bool = False) -> None:
         st.image(image, width="stretch" if full else 145)
     else:
         st.markdown(
-            '<div class="listing-placeholder">:material/build:</div>', unsafe_allow_html=True
+            '<div class="listing-placeholder">🛠️<span>No photo</span></div>',
+            unsafe_allow_html=True,
         )
 
 
