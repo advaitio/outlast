@@ -33,7 +33,6 @@ class Quest(BaseModel):
     item_name: str
     description: str
     owner: str
-    team: str = "COM3"
     action: RescueAction
     difficulty: Difficulty
     estimated_waste_kg: float

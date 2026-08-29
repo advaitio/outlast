@@ -6,14 +6,13 @@ import streamlit as st
 
 from repair_quest.models import QuestAnalysis, RescueAction
 from repair_quest.scoring import calculate_points
-from repair_quest.seed import PLAYERS, TEAM, seeded_quests
+from repair_quest.seed import PLAYERS, seeded_quests
 
 
 def initialise_state() -> None:
     defaults = {
         "quests": seeded_quests(),
         "current_player": PLAYERS[0],
-        "team": TEAM,
         "analysis": None,
         "flash": None,
     }
@@ -29,7 +28,6 @@ def create_quest(analysis: QuestAnalysis, description: str) -> dict:
         "item_name": analysis.item_name,
         "description": description,
         "owner": st.session_state.current_player,
-        "team": st.session_state.team,
         "action": analysis.recommended_action.value,
         "difficulty": analysis.difficulty.value,
         "estimated_waste_kg": analysis.estimated_waste_kg,

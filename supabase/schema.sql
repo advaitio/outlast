@@ -1,24 +1,16 @@
 -- Repair Quest MVP schema
--- Run in Supabase SQL Editor when the team is ready to replace Streamlit session state.
+-- Run in Supabase SQL Editor when the project is ready to replace Streamlit session state.
 
 create extension if not exists "pgcrypto";
-
-create table if not exists public.teams (
-  id uuid primary key default gen_random_uuid(),
-  name text not null unique,
-  created_at timestamptz not null default now()
-);
 
 create table if not exists public.players (
   id uuid primary key default gen_random_uuid(),
   display_name text not null,
-  team_id uuid not null references public.teams(id) on delete cascade,
   created_at timestamptz not null default now()
 );
 
 create table if not exists public.quests (
   id uuid primary key default gen_random_uuid(),
-  team_id uuid not null references public.teams(id) on delete cascade,
   owner_id uuid not null references public.players(id) on delete cascade,
   title text not null,
   item_name text not null,
@@ -59,13 +51,11 @@ on conflict (id) do nothing;
 
 -- The hackathon build uses fake users. Before production, enable RLS and replace
 -- these prototype policies with rules tied to Supabase Auth identities.
-alter table public.teams enable row level security;
 alter table public.players enable row level security;
 alter table public.quests enable row level security;
 alter table public.quest_helpers enable row level security;
 alter table public.quest_suggestions enable row level security;
 
-create policy "Prototype read teams" on public.teams for select using (true);
 create policy "Prototype read players" on public.players for select using (true);
 create policy "Prototype read quests" on public.quests for select using (true);
 create policy "Prototype read helpers" on public.quest_helpers for select using (true);

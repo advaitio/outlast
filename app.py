@@ -80,7 +80,7 @@ def quest_card(quest: dict) -> None:
           <span class="pill">~{quest["estimated_waste_kg"]} kg</span>
           <p>{quest["description"]}</p>
           <p><strong>First step:</strong> {quest["next_step"]}</p>
-          <p class="small-note">Posted by {quest["owner"]} · Team {quest["team"]}</p>
+          <p class="small-note">Posted by {quest["owner"]}</p>
         </div>
         """,
         unsafe_allow_html=True,
@@ -275,15 +275,15 @@ def rescue_page() -> None:
                 points = complete_quest(selected_id, outcome)
                 st.balloons()
                 st.session_state.flash = (
-                    f"Rescue complete! Team COM3 earned {points} Impact Points."
+                    f"Rescue complete! You earned {points} Impact Points."
                 )
                 st.rerun()
 
 
 def impact_page() -> None:
     hero(
-        "Team COM3 is on a roll",
-        "Every repaired, rehomed, or salvaged item moves the whole team forward.",
+        "The community is on a roll",
+        "Every repaired, rehomed, or salvaged item moves the community forward.",
         "Impact",
     )
     session_impact = impact_summary(st.session_state.quests)
@@ -301,23 +301,25 @@ def impact_page() -> None:
     cols[3].metric("Impact Points", int(total["points"]), f"+{session_impact['points']} today")
 
     progress = min(float(total["points"]) / 1_000, 1.0)
-    st.subheader("Next team level: Circular Champions")
+    st.subheader("Next community level: Circular Champions")
     st.progress(progress, text=f"{int(total['points'])} / 1,000 points")
 
     board_col, history_col = st.columns([1, 1.15])
     with board_col:
         st.subheader("Leaderboard")
         board = [row.copy() for row in LEADERBOARD]
-        board[0].update(
-            items=int(total["items_rescued"]),
-            waste_kg=float(total["waste_avoided_kg"]),
-            points=int(total["points"]),
+        current_player = st.session_state.current_player
+        current_row = next(row for row in board if row["player"] == current_player)
+        current_row.update(
+            items=current_row["items"] + int(session_impact["items_rescued"]),
+            waste_kg=current_row["waste_kg"] + float(session_impact["waste_avoided_kg"]),
+            points=current_row["points"] + int(session_impact["points"]),
         )
         board.sort(key=lambda row: row["points"], reverse=True)
         for rank, row in enumerate(board, start=1):
             medal = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
             st.markdown(
-                f"**{medal} {row['team']}**  \n"
+                f"**{medal} {row['player']}**  \n"
                 f"{row['items']} rescues · {row['waste_kg']:.1f} kg · {row['points']} pts"
             )
     with history_col:
@@ -326,7 +328,7 @@ def impact_page() -> None:
         if not completed:
             st.info(
                 "Complete a quest to add your first live result. "
-                "Seeded team totals are shown for the demo."
+                "Seeded community totals are shown for the demo."
             )
         for quest in completed:
             st.success(
@@ -339,7 +341,7 @@ initialise_state()
 
 with st.sidebar:
     st.markdown("## 🛠️ Repair Quest")
-    st.caption("Turn throwaways into team wins.")
+    st.caption("Turn throwaways into community wins.")
     page = st.radio("Go to", ["Discover", "Rescue", "Impact"], label_visibility="collapsed")
     st.divider()
     st.session_state.current_player = st.selectbox(
@@ -347,7 +349,6 @@ with st.sidebar:
         PLAYERS,
         index=PLAYERS.index(st.session_state.current_player),
     )
-    st.markdown(f"**Team {st.session_state.team}**")
     st.caption("Hackathon demo profile · no sign-in needed")
     st.divider()
     if st.button("Reset demo data", use_container_width=True):

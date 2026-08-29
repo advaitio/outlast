@@ -1,7 +1,6 @@
 from repair_quest.models import Difficulty, Quest, RescueAction
 
 PLAYERS = ["Alex", "Maya", "Noah", "Priya", "Sam"]
-TEAM = "COM3"
 
 
 def seeded_quests() -> list[dict]:
@@ -104,7 +103,9 @@ def seeded_quests() -> list[dict]:
 
 
 LEADERBOARD = [
-    {"team": "COM3", "items": 12, "waste_kg": 7.4, "points": 620},
-    {"team": "Circular Squad", "items": 10, "waste_kg": 6.8, "points": 570},
-    {"team": "Second Chance", "items": 8, "waste_kg": 5.1, "points": 490},
+    {"player": "Maya", "items": 5, "waste_kg": 3.2, "points": 240},
+    {"player": "Noah", "items": 4, "waste_kg": 2.6, "points": 210},
+    {"player": "Priya", "items": 3, "waste_kg": 2.1, "points": 180},
+    {"player": "Sam", "items": 2, "waste_kg": 1.4, "points": 130},
+    {"player": "Alex", "items": 2, "waste_kg": 1.2, "points": 120},
 ]

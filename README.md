@@ -10,7 +10,7 @@ The MVP is intentionally focused on one measurable behaviour:
 
 - **Discover:** an eight-quest Rescue Board with Claim, Join, Offer Part, and suggestions.
 - **Rescue:** photo and description input, AI-assisted structured quest generation, posting, and completion.
-- **Impact:** outcome scoring, collaboration bonuses, team metrics, progress, and leaderboard.
+- **Impact:** outcome scoring, collaboration bonuses, individual metrics, progress, and leaderboard.
 - **Demo mode:** fake users and a deterministic AI fallback, so the full flow works without credentials.
 - **Cloud-ready setup:** OpenAI secrets template, Supabase schema, Streamlit theme, tests, linting, and GitHub Actions.
 
@@ -41,7 +41,7 @@ Never commit `.streamlit/secrets.toml` or `.env`.
 2. Post the generated quest to the shared board.
 3. Change the demo player in the sidebar, then Claim or Join the fan quest on **Discover**.
 4. Return to **Rescue**, complete it as Repaired, and show the point reward.
-5. Open **Impact** to show updated team progress and leaderboard.
+5. Open **Impact** to show updated community progress and individual leaderboard.
 
 ## Scoring
 
