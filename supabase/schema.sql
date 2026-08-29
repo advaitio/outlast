@@ -10,6 +10,9 @@ create table if not exists public.players (
   created_at timestamptz not null default now()
 );
 
+-- Existing prototype projects may already have players without the new XP column.
+alter table public.players add column if not exists xp integer not null default 0;
+
 create table if not exists public.rescues (
   id uuid primary key default gen_random_uuid(),
   owner_id uuid not null references public.players(id) on delete cascade,
@@ -75,8 +78,14 @@ create index if not exists player_activity_days_player_date_idx
   on public.player_activity_days (player_id, activity_date desc);
 
 insert into public.players (display_name, xp)
-values ('Alex', 120), ('Maya', 240), ('Noah', 210), ('Priya', 180), ('Sam', 130)
-on conflict (display_name) do nothing;
+select seeded.display_name, seeded.xp
+from (values
+  ('Alex', 120), ('Maya', 240), ('Noah', 210), ('Priya', 180), ('Sam', 130)
+) as seeded(display_name, xp)
+where not exists (
+  select 1 from public.players existing
+  where existing.display_name = seeded.display_name
+);
 
 insert into storage.buckets (id, name, public)
 values ('rescue-images', 'rescue-images', true)
@@ -89,6 +98,20 @@ alter table public.rescues enable row level security;
 alter table public.rescue_contributions enable row level security;
 alter table public.rescue_solvers enable row level security;
 alter table public.player_activity_days enable row level security;
+
+drop policy if exists "Prototype read players" on public.players;
+drop policy if exists "Prototype read rescues" on public.rescues;
+drop policy if exists "Prototype read contributions" on public.rescue_contributions;
+drop policy if exists "Prototype read solvers" on public.rescue_solvers;
+drop policy if exists "Prototype read activity days" on public.player_activity_days;
+drop policy if exists "Prototype insert players" on public.players;
+drop policy if exists "Prototype update players" on public.players;
+drop policy if exists "Prototype insert rescues" on public.rescues;
+drop policy if exists "Prototype update rescues" on public.rescues;
+drop policy if exists "Prototype insert contributions" on public.rescue_contributions;
+drop policy if exists "Prototype insert solvers" on public.rescue_solvers;
+drop policy if exists "Prototype update solvers" on public.rescue_solvers;
+drop policy if exists "Prototype insert activity days" on public.player_activity_days;
 
 create policy "Prototype read players" on public.players for select using (true);
 create policy "Prototype read rescues" on public.rescues for select using (true);

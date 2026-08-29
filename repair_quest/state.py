@@ -14,8 +14,8 @@ from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 def initialise_state() -> None:
     remote = db.load_data()
     defaults = {
-        "rescues": remote[0] if remote else seeded_rescues(),
-        "player_stats": remote[1] if remote else seeded_player_stats(),
+        "rescues": remote[0] if remote and remote[0] else seeded_rescues(),
+        "player_stats": remote[1] if remote and remote[0] else seeded_player_stats(),
         "current_player": PLAYERS[0],
         "analysis": None,
         "flash": None,
