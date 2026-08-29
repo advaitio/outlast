@@ -24,9 +24,20 @@ create table if not exists public.rescues (
   after_image_path text,
   status text not null default 'Open' check (status in ('Open', 'Completed')),
   outcome text check (outcome in ('Repair', 'Rehome', 'Salvage')),
+  completed_by_id uuid references public.players(id),
+  completion_xp_awarded integer not null default 0 check (completion_xp_awarded >= 0),
+  completion_streak_multiplier numeric(3,2) check (completion_streak_multiplier in (1.00, 1.10, 1.25, 1.50)),
   created_at timestamptz not null default now(),
   completed_at timestamptz,
-  check ((status = 'Completed') = (completed_at is not null))
+  check ((status = 'Completed') = (completed_at is not null)),
+  check (
+    status <> 'Completed'
+    or (
+      completed_by_id is not null
+      and completion_xp_awarded > 0
+      and completion_streak_multiplier is not null
+    )
+  )
 );
 
 -- Contribution type is intentionally restricted to suggestions for this release.

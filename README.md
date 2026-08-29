@@ -48,6 +48,7 @@ Never commit `.streamlit/secrets.toml` or `.env`.
 | Activity | Base XP |
 | --- | ---: |
 | Post a useful suggestion | 20 |
+| Complete a rescue as its original poster | 50 |
 | Selected as a solver | 100 |
 
 Each award is multiplied by the recipient's active calendar-day streak: 1–2 days is **1.0×**, 3–6 is **1.1×**, 7–13 is **1.25×**, and 14+ is **1.5×**. Missing a full day resets the active multiplier to 1.0×.

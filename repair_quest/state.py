@@ -6,7 +6,7 @@ from uuid import uuid4
 import streamlit as st
 
 from repair_quest.models import ContributionType, RescueAction, RescueAnalysis, RescueStatus
-from repair_quest.scoring import CONTRIBUTOR_XP, SOLVER_XP, award_for
+from repair_quest.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
 from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
@@ -36,6 +36,9 @@ def create_rescue(analysis: RescueAnalysis, description: str) -> dict:
         "status": RescueStatus.OPEN.value,
         "contributions": [],
         "outcome": None,
+        "completed_by": None,
+        "completion_xp_award": 0,
+        "completion_streak_multiplier": None,
         "solvers": [],
         "solver_xp_awards": {},
     }
@@ -83,7 +86,7 @@ def add_suggestion(rescue_id: str, message: str) -> tuple[int, int, float]:
 
 def complete_rescue(
     rescue_id: str, outcome: RescueAction, solvers: list[str]
-) -> dict[str, tuple[int, int, float]]:
+) -> tuple[tuple[int, int, float], dict[str, tuple[int, int, float]]]:
     rescue = next(rescue for rescue in st.session_state.rescues if rescue["id"] == rescue_id)
     if rescue["status"] == RescueStatus.COMPLETED.value:
         raise ValueError("This rescue is already complete.")
@@ -94,12 +97,16 @@ def complete_rescue(
         raise ValueError("Select at least one solver.")
     if any(player not in PLAYERS for player in selected_solvers):
         raise ValueError("Select solvers from the listed community members.")
-    awards = {player: _award_xp(player, SOLVER_XP) for player in selected_solvers}
+    completion_award = _award_xp(rescue["owner"], COMPLETER_XP)
+    solver_awards = {player: _award_xp(player, SOLVER_XP) for player in selected_solvers}
     update_rescue(
         rescue_id,
         status=RescueStatus.COMPLETED.value,
         outcome=outcome.value,
+        completed_by=rescue["owner"],
+        completion_xp_award=completion_award[0],
+        completion_streak_multiplier=completion_award[2],
         solvers=selected_solvers,
-        solver_xp_awards={player: award[0] for player, award in awards.items()},
+        solver_xp_awards={player: award[0] for player, award in solver_awards.items()},
     )
-    return awards
+    return completion_award, solver_awards

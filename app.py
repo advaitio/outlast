@@ -5,11 +5,11 @@ import streamlit as st
 from repair_quest.ai import ai_available, analyze_item
 from repair_quest.models import RescueAction, RescueAnalysis, RescueStatus
 from repair_quest.scoring import (
+    COMPLETER_XP,
     CONTRIBUTOR_XP,
     SOLVER_XP,
     impact_summary,
     streak_length,
-    streak_multiplier,
 )
 from repair_quest.seed import PLAYERS
 from repair_quest.state import add_suggestion, complete_rescue, create_rescue, initialise_state
@@ -53,10 +53,9 @@ def rescue_card(rescue: dict) -> None:
                 submitted = st.form_submit_button("Post suggestion", icon=":material/send:")
             if submitted:
                 try:
-                    xp, streak, multiplier = add_suggestion(rescue["id"], suggestion)
+                    xp, streak, _ = add_suggestion(rescue["id"], suggestion)
                     st.session_state.flash = (
-                        f"Suggestion posted. You earned {xp} XP "
-                        f"({CONTRIBUTOR_XP} × {multiplier:.2g}; {streak}-day streak)."
+                        f"Suggestion posted. You earned {xp} XP with a {streak}-day streak."
                     )
                     st.rerun()
                 except ValueError as exc:
@@ -161,9 +160,14 @@ def rescue_page() -> None:
                 )
             if completed:
                 try:
-                    awards = complete_rescue(rescue_id, outcome, solvers)
-                    award_text = ", ".join(f"{player} +{xp[0]} XP" for player, xp in awards.items())
-                    st.session_state.flash = f"Rescue complete. Solver XP awarded: {award_text}."
+                    completion_award, solver_awards = complete_rescue(rescue_id, outcome, solvers)
+                    award_text = ", ".join(
+                        f"{player} +{xp[0]} XP" for player, xp in solver_awards.items()
+                    )
+                    st.session_state.flash = (
+                        f"Rescue complete. You earned {completion_award[0]} XP for completing it. "
+                        f"Solver XP awarded: {award_text}."
+                    )
                     st.balloons()
                     st.rerun()
                 except (PermissionError, ValueError) as exc:
@@ -197,13 +201,10 @@ def impact_page() -> None:
         )
         for rank, (player, stats) in enumerate(board, start=1):
             streak = streak_length(stats["activity_dates"])
-            multiplier = streak_multiplier(streak)
-            st.write(
-                f"**#{rank} {player}** — {stats['xp']} XP · {streak}-day streak · {multiplier:.2g}×"
-            )
+            st.write(f"**#{rank} {player}** — {stats['xp']} XP · {streak}-day streak")
         st.caption(
-            f"Suggestion: {CONTRIBUTOR_XP} XP × streak multiplier · "
-            f"Solver: {SOLVER_XP} XP × streak multiplier"
+            f"Suggestion: {CONTRIBUTOR_XP} XP · Completing: {COMPLETER_XP} XP · "
+            f"Solver: {SOLVER_XP} XP"
         )
     with history_col:
         st.subheader("Completed rescues")
@@ -231,9 +232,7 @@ with st.sidebar:
     )
     stats = st.session_state.player_stats[st.session_state.current_player]
     current_streak = streak_length(stats["activity_dates"])
-    st.caption(
-        f"{stats['xp']} XP · {current_streak}-day streak · {streak_multiplier(current_streak):.2g}×"
-    )
+    st.caption(f"{stats['xp']} XP · {current_streak}-day streak")
     if st.button("Reset demo data", icon=":material/restart_alt:"):
         for key in list(st.session_state):
             del st.session_state[key]

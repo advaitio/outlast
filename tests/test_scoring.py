@@ -1,6 +1,7 @@
 from datetime import date
 
 from repair_quest.scoring import (
+    COMPLETER_XP,
     CONTRIBUTOR_XP,
     SOLVER_XP,
     award_for,
@@ -26,6 +27,7 @@ def test_streak_resets_after_a_missed_day() -> None:
 def test_xp_awards_use_the_active_streak() -> None:
     days = ["2026-08-29", "2026-08-28", "2026-08-27"]
     assert award_for(CONTRIBUTOR_XP, days, date(2026, 8, 29)) == (22, 3, 1.1)
+    assert award_for(COMPLETER_XP, days, date(2026, 8, 29)) == (55, 3, 1.1)
     assert award_for(SOLVER_XP, days, date(2026, 8, 29)) == (110, 3, 1.1)
 
 

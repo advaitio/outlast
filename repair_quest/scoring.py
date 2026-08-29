@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import date, timedelta
 
 CONTRIBUTOR_XP = 20
+COMPLETER_XP = 50
 SOLVER_XP = 100
 
 

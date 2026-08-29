@@ -57,5 +57,8 @@ class Rescue(BaseModel):
     status: RescueStatus = RescueStatus.OPEN
     contributions: list[Contribution] = Field(default_factory=list)
     outcome: RescueAction | None = None
+    completed_by: str | None = None
+    completion_xp_award: int = Field(default=0, ge=0)
+    completion_streak_multiplier: float | None = Field(default=None, ge=1, le=1.5)
     solvers: list[str] = Field(default_factory=list)
     solver_xp_awards: dict[str, int] = Field(default_factory=dict)
