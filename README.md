@@ -74,11 +74,11 @@ When Supabase credentials are configured, items, images, suggestions, solver awa
 
 ```text
 app.py                       Three-screen Streamlit application
-repair_quest/ai.py           OpenAI analysis and offline fallback
-repair_quest/models.py       Structured item and contribution models
-repair_quest/scoring.py      XP streak and community impact rules
-repair_quest/seed.py         Fake users, items, and individual XP data
-repair_quest/state.py        Prototype session-state actions
+outlast/ai.py                OpenAI analysis and offline fallback
+outlast/models.py            Structured item and contribution models
+outlast/scoring.py           XP streak and community impact rules
+outlast/seed.py              Fake users, items, and individual XP data
+outlast/state.py             Prototype session-state actions
 supabase/schema.sql          Shared database and image-store setup
 supabase/atomic_persistence.sql  Transactional write functions and Storage upload policy
 tests/                       Fast unit tests

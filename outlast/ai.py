@@ -8,7 +8,7 @@ from typing import Any
 
 from openai import OpenAI
 
-from repair_quest.models import Difficulty, DisposalGuidance, PrePostGuidance, RescueAnalysis
+from outlast.models import Difficulty, DisposalGuidance, PrePostGuidance, RescueAnalysis
 
 SYSTEM_PROMPT = """You create safe, encouraging item assessments for a community repair game.
 Assess the user's description and the image together when an image is provided. Choose exactly

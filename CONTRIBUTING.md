@@ -2,7 +2,7 @@
 
 ## Suggested hackathon ownership
 
-- **Item flow + AI:** `repair_quest/ai.py`, item creation and resolution in `app.py`.
+- **Item flow + AI:** `outlast/ai.py`, item creation and resolution in `app.py`.
 - **Social / Discover:** Item Board cards and suggestions in `app.py`.
 - **Impact + integration:** `repair_quest/scoring.py`, `supabase/schema.sql`, leaderboard, deployment, and visual consistency.
 

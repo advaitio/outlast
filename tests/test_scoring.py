@@ -1,6 +1,6 @@
 from datetime import date
 
-from repair_quest.scoring import (
+from outlast.scoring import (
     COMPLETER_XP,
     CONTRIBUTOR_XP,
     SOLVER_XP,

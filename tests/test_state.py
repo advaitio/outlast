@@ -1,8 +1,8 @@
 import pytest
 import streamlit as st
 
-from repair_quest import db
-from repair_quest.models import (
+from outlast import db
+from outlast.models import (
     Difficulty,
     DisposalGuidance,
     PrePostGuidance,
@@ -10,8 +10,8 @@ from repair_quest.models import (
     RescueAnalysis,
     RescueOutcome,
 )
-from repair_quest.seed import seeded_player_stats, seeded_rescues
-from repair_quest.state import (
+from outlast.seed import seeded_player_stats, seeded_rescues
+from outlast.state import (
     add_suggestion,
     complete_rescue,
     create_rescue,

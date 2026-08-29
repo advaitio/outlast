@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import date, timedelta
 
-from repair_quest.models import Contribution, ContributionType, Difficulty, Rescue, RescueAction
+from outlast.models import Contribution, ContributionType, Difficulty, Rescue, RescueAction
 
 PLAYERS = ["Alex", "Maya", "Noah", "Priya", "Sam"]
 

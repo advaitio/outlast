@@ -5,8 +5,8 @@ from uuid import uuid4
 
 import streamlit as st
 
-from repair_quest import db
-from repair_quest.models import (
+from outlast import db
+from outlast.models import (
     ContributionType,
     DisposalGuidance,
     RescueAction,
@@ -14,8 +14,8 @@ from repair_quest.models import (
     RescueOutcome,
     RescueStatus,
 )
-from repair_quest.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
-from repair_quest.seed import PLAYERS, seeded_player_stats, seeded_rescues
+from outlast.scoring import COMPLETER_XP, CONTRIBUTOR_XP, SOLVER_XP, award_for
+from outlast.seed import PLAYERS, seeded_player_stats, seeded_rescues
 
 
 def initialise_state() -> None:

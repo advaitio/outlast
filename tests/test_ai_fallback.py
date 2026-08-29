@@ -1,8 +1,8 @@
 from types import SimpleNamespace
 
-from repair_quest import ai
-from repair_quest.ai import fallback_analysis, fallback_disposal_guidance
-from repair_quest.models import PrePostGuidance
+from outlast import ai
+from outlast.ai import fallback_analysis, fallback_disposal_guidance
+from outlast.models import PrePostGuidance
 
 
 def test_fallback_suggests_passing_on_an_item_that_already_works() -> None:

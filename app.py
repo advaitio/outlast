@@ -2,25 +2,25 @@ from __future__ import annotations
 
 import streamlit as st
 
-from repair_quest import db
-from repair_quest.ai import ai_available, analyze_item
-from repair_quest.ai import disposal_guidance as generate_disposal_guidance
-from repair_quest.models import (
+from outlast import db
+from outlast.ai import ai_available, analyze_item
+from outlast.ai import disposal_guidance as generate_disposal_guidance
+from outlast.models import (
     DisposalGuidance,
     PrePostGuidance,
     RescueAnalysis,
     RescueOutcome,
     RescueStatus,
 )
-from repair_quest.scoring import (
+from outlast.scoring import (
     COMPLETER_XP,
     CONTRIBUTOR_XP,
     SOLVER_XP,
     impact_summary,
     streak_length,
 )
-from repair_quest.seed import PLAYERS
-from repair_quest.state import (
+from outlast.seed import PLAYERS
+from outlast.state import (
     add_suggestion,
     complete_rescue,
     create_rescue,
