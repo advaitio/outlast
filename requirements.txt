@@ -1,5 +1,5 @@
 streamlit>=1.49,<2
 openai>=2.8,<3
+pillow>=11,<13
 pydantic>=2.11,<3
 supabase>=2.18,<3
-

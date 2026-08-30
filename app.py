@@ -8,6 +8,7 @@ from outlast import db
 from outlast.ai import ai_available, analyze_item
 from outlast.ai import disposal_guidance as generate_disposal_guidance
 from outlast.ewaste import CATEGORY_LABELS, DATASET_URL, find_ewaste_points
+from outlast.images import image_for_display
 from outlast.models import DisposalGuidance, RescueAnalysis, RescueOutcome, RescueStatus
 from outlast.scoring import (
     COMPLETER_XP,
@@ -93,25 +94,37 @@ def top_bar() -> None:
             object-fit: cover;
             border-radius: 6px;
         }
-        .metric-grid {
-            display: grid;
-            grid-template-columns: repeat(4, minmax(0, 1fr));
-            gap: 0.75rem;
-            margin-top: 1rem;
+        .impact-summary {
+            margin-top: 0.65rem;
+            margin-bottom: 1.25rem;
         }
-        .metric-surface {
-            min-width: 0;
-            padding: 0.95rem 1rem;
-            border: 0;
-            border-radius: 6px;
-            background: #edf3e7;
-        }
-        .metric-label { color: #58675f; font-size: 0.78rem; font-weight: 500; }
-        .metric-value {
-            margin-top: 0.3rem;
+        .impact-value {
             color: #183a2c;
             font-family: Manrope, Inter, sans-serif;
-            font-size: 1.8rem;
+            font-size: clamp(2rem, 3.5vw, 3rem);
+            font-weight: 650;
+            letter-spacing: -0.025em;
+            line-height: 1.1;
+        }
+        .impact-value strong { color: #b94a2a; font-weight: 700; }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            margin-top: 1rem;
+            max-width: 52rem;
+        }
+        .metric-item {
+            min-width: 0;
+            padding: 0 1.25rem;
+            border-left: 1px solid #d6e1d1;
+        }
+        .metric-item:first-child { padding-left: 0; border-left: 0; }
+        .metric-label { color: #58675f; font-size: 0.78rem; font-weight: 500; }
+        .metric-value {
+            margin-top: 0.2rem;
+            color: #183a2c;
+            font-family: Manrope, Inter, sans-serif;
+            font-size: 1.55rem;
             font-weight: 650;
             line-height: 1.15;
         }
@@ -123,6 +136,10 @@ def top_bar() -> None:
         .leaderboard-card.leader {
             border-bottom-color: #dbe8d5;
             background: transparent;
+        }
+        .leaderboard-card.current {
+            padding-left: 0.75rem;
+            border-left: 3px solid #b94a2a;
         }
         .leaderboard-rank {
             flex: 0 0 1.5rem;
@@ -154,11 +171,22 @@ def top_bar() -> None:
             padding-top: 1.25rem;
             border-top: 1px solid #d6e1d1;
         }
-        [data-testid="stDialog"] [data-testid="stImage"] img {
-            width: 100%;
-            max-height: 320px;
-            object-fit: cover;
+        .st-key-listing-dialog-image [data-testid="stImage"] {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            max-height: 55vh;
+            min-height: 12rem;
+            overflow: hidden;
             border-radius: 6px;
+            background: #f4f1e8;
+        }
+        .st-key-listing-dialog-image [data-testid="stImage"] img {
+            width: auto !important;
+            max-width: 100%;
+            max-height: 55vh;
+            object-fit: contain;
+            border-radius: 0;
         }
         @media (max-width: 640px) {
             .st-key-topbar [data-testid="stHorizontalBlock"] {
@@ -181,8 +209,16 @@ def top_bar() -> None:
                 justify-content: space-between;
                 gap: 0.5rem;
             }
-            .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-            .metric-value { font-size: 1.5rem; }
+            .metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 1rem 0;
+            }
+            .metric-item { padding-inline: 0; border-left: 0; }
+            .metric-item:nth-child(even) {
+                padding-left: 1rem;
+                border-left: 1px solid #d6e1d1;
+            }
+            .metric-value { font-size: 1.4rem; }
             h1 { font-size: 32px !important; line-height: 1.18 !important; }
         }
         </style>
@@ -196,7 +232,7 @@ def top_bar() -> None:
         with brand:
             st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
             st.markdown(
-                '<div class="outlast-tagline">One community repair attempt.</div>',
+                '<div class="outlast-tagline">Repair first. A pilot for NUS students.</div>',
                 unsafe_allow_html=True,
             )
         with navigation:
@@ -245,14 +281,20 @@ def image_source(rescue: dict, after: bool = False) -> bytes | str | None:
 def show_listing_image(rescue: dict, full: bool = False) -> None:
     image = image_source(rescue)
     if image:
-        st.image(image, width="stretch")
+        display_image = image_for_display(image)
+        if full:
+            with st.container(key="listing-dialog-image"):
+                st.image(display_image)
+        else:
+            st.image(display_image, width="stretch")
     else:
         st.markdown('<div class="listing-placeholder">No photo</div>', unsafe_allow_html=True)
 
 
 def listing_card(rescue: dict, context: str) -> None:
     with st.container(key=f"listing-{context}-{rescue['id']}"):
-        image_col, details_col = st.columns([1.15, 1.85], vertical_alignment="center")
+        widths = [1.35, 1.65] if context.startswith("dashboard-") else [1.15, 1.85]
+        image_col, details_col = st.columns(widths, vertical_alignment="center")
         with image_col:
             show_listing_image(rescue)
         with details_col:
@@ -520,17 +562,29 @@ def card_grid(rescues: list[dict], context: str, empty_message: str) -> None:
                 listing_card(rescue, context)
 
 
-def metric_grid(metrics: list[tuple[str, str]]) -> None:
-    surfaces = "".join(
+def impact_summary(
+    waste_avoided: float,
+    secondary_metrics: list[tuple[str, str]],
+) -> None:
+    items = "".join(
         (
-            '<div class="metric-surface">'
+            '<div class="metric-item">'
             f'<div class="metric-label">{escape(label)}</div>'
             f'<div class="metric-value">{escape(value)}</div>'
             "</div>"
         )
-        for label, value in metrics
+        for label, value in secondary_metrics
     )
-    st.markdown(f'<div class="metric-grid">{surfaces}</div>', unsafe_allow_html=True)
+    st.markdown(
+        (
+            '<div class="impact-summary">'
+            f'<div class="impact-value"><strong>{waste_avoided:.1f} kg</strong> '
+            "waste avoided</div>"
+            f'<div class="metric-grid">{items}</div>'
+            "</div>"
+        ),
+        unsafe_allow_html=True,
+    )
 
 
 def dashboard_page() -> None:
@@ -550,16 +604,22 @@ def dashboard_page() -> None:
     }
     waste_avoided = sum(item["estimated_waste_kg"] for item in completed_positive.values())
 
-    st.title(f"Welcome back, {player}")
-    st.caption("Your repair history, real-world impact, and community standing in one place.")
+    with st.container(key="dashboard-intro", gap=None):
+        st.title(f"Welcome back, {player}")
+        st.caption("Your repair history, real-world impact, and community standing in one place.")
     show_flash()
-    metric_grid(
+    item_word = "item" if len(completed_positive) == 1 else "items"
+    st.write(
+        f"You’ve helped keep {len(completed_positive)} {item_word} in use and avoided "
+        f"{waste_avoided:g} kg of waste."
+    )
+    impact_summary(
+        waste_avoided,
         [
             ("XP", str(stats["xp"])),
             ("Current streak", f"{streak_length(stats['activity_dates'])} days"),
             ("Items helped", str(len(completed_positive))),
-            ("Waste avoided", f"{waste_avoided:.1f} kg"),
-        ]
+        ],
     )
 
     st.subheader("Your activity")
@@ -575,7 +635,7 @@ def dashboard_page() -> None:
             "No solved items yet. Get recognised by an owner to see one here.",
         )
 
-    st.subheader("Leaderboard")
+    st.subheader("Campus contributors")
     leaderboard = sorted(
         st.session_state.player_stats.items(), key=lambda item: item[1]["xp"], reverse=True
     )
@@ -586,11 +646,15 @@ def dashboard_page() -> None:
         current_player_badge = (
             '<span class="leaderboard-you">You</span>' if name == player else ""
         )
-        leader_class = " leader" if rank == 1 else ""
+        row_classes = ["leaderboard-card"]
+        if rank == 1:
+            row_classes.append("leader")
+        if name == player:
+            row_classes.append("current")
         streak = streak_length(player_stats["activity_dates"])
         st.markdown(
             f"""
-            <div class="leaderboard-card{leader_class}">
+            <div class="{' '.join(row_classes)}">
                 <div class="leaderboard-rank">{rank_label}</div>
                 <div class="leaderboard-person">
                     <div class="leaderboard-name">{escape(name)}{current_player_badge}</div>
