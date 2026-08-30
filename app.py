@@ -98,6 +98,17 @@ def top_bar() -> None:
             margin-top: 0.65rem;
             margin-bottom: 1.25rem;
         }
+        .st-key-dashboard-summary {
+            width: 100%;
+            max-width: 58rem;
+            margin-inline: auto;
+            text-align: center;
+        }
+        .st-key-dashboard-summary [data-testid="stMarkdownContainer"] {
+            text-align: center;
+        }
+        .st-key-dashboard-summary .metric-grid { margin-inline: auto; }
+        .st-key-dashboard-summary .metric-item { text-align: center; }
         .impact-value {
             color: #183a2c;
             font-family: Manrope, Inter, sans-serif;
@@ -604,23 +615,27 @@ def dashboard_page() -> None:
     }
     waste_avoided = sum(item["estimated_waste_kg"] for item in completed_positive.values())
 
-    with st.container(key="dashboard-intro", gap=None):
-        st.title(f"Welcome back, {player}")
-        st.caption("Your repair history, real-world impact, and community standing in one place.")
-    show_flash()
     item_word = "item" if len(completed_positive) == 1 else "items"
-    st.write(
-        f"You’ve helped keep {len(completed_positive)} {item_word} in use and avoided "
-        f"{waste_avoided:g} kg of waste."
-    )
-    impact_summary(
-        waste_avoided,
-        [
-            ("XP", str(stats["xp"])),
-            ("Current streak", f"{streak_length(stats['activity_dates'])} days"),
-            ("Items helped", str(len(completed_positive))),
-        ],
-    )
+    with st.container(key="dashboard-summary"):
+        with st.container(key="dashboard-intro", gap=None):
+            st.title(f"Welcome back, {player}")
+            st.caption(
+                "Your repair history, real-world impact, and community standing in one place.",
+                text_alignment="center",
+            )
+        show_flash()
+        st.write(
+            f"You’ve helped keep {len(completed_positive)} {item_word} in use and avoided "
+            f"{waste_avoided:g} kg of waste."
+        )
+        impact_summary(
+            waste_avoided,
+            [
+                ("XP", str(stats["xp"])),
+                ("Current streak", f"{streak_length(stats['activity_dates'])} days"),
+                ("Items helped", str(len(completed_positive))),
+            ],
+        )
 
     st.subheader("Your activity")
     contributed_tab, solved_tab = st.tabs(
