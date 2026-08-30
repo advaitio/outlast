@@ -1,13 +1,25 @@
 [theme]
-primaryColor = "#FF6B35"
+base = "light"
+primaryColor = "#B94A2A"
 backgroundColor = "#FFFDF7"
 secondaryBackgroundColor = "#F2F7E9"
 textColor = "#183A2C"
-font = "sans serif"
+borderColor = "#D6E1D1"
+orangeColor = "#B94A2A"
+orangeBackgroundColor = "#F8E5DB"
+orangeTextColor = "#963D25"
+grayColor = "#66736C"
+font = "Inter:https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap"
+headingFont = "Manrope:https://fonts.googleapis.com/css2?family=Manrope:wght@600;700&display=swap"
+baseFontSize = 15
+baseFontWeight = 400
+headingFontSizes = ["36px", "26px", "21px", "17px", "15px", "13px"]
+headingFontWeights = [700, 650, 650, 600, 600, 600]
+baseRadius = "8px"
+buttonRadius = "8px"
 
 [browser]
 gatherUsageStats = false
 
 [server]
 maxUploadSize = 10
-

@@ -49,36 +49,91 @@ def top_bar() -> None:
     st.markdown(
         """
         <style>
-        .outlast-brand { font-size: 2rem; font-weight: 800; letter-spacing: -0.06em; }
+        .outlast-brand { font-size: 2rem; font-weight: 700; letter-spacing: -0.02em; }
         .outlast-tagline { color: #6b7280; margin-top: -0.45rem; }
-        .listing-placeholder {
-            height: 112px; display: flex; flex-direction: column; gap: 0.25rem;
-            align-items: center; justify-content: center; border-radius: 0.7rem;
-            background: #eff6ff; color: #2563eb; font-size: 1.8rem;
+        .st-key-topbar [data-testid="stHorizontalBlock"] {
+            display: grid;
+            grid-template-columns: minmax(190px, 1fr) minmax(360px, 1.7fr) minmax(130px, 0.7fr);
+            align-items: center;
+            gap: 2rem;
         }
-        .listing-placeholder span {font-size: 0.72rem; font-weight: 700; color: #64748b;}
+        .st-key-topbar [data-testid="stColumn"] {
+            width: auto !important;
+            min-width: 0;
+            flex: none !important;
+        }
+        .st-key-topbar [data-testid="stColumn"]:last-child { justify-self: end; }
+        .st-key-page [role="radiogroup"] {
+            gap: 1.5rem;
+            border: 0;
+            background: transparent;
+        }
+        .st-key-page [role="radio"] {
+            min-height: 2.5rem;
+            padding-inline: 0.25rem;
+            border: 0;
+            border-bottom: 2px solid transparent;
+            border-radius: 0;
+            background: transparent !important;
+            box-shadow: none !important;
+        }
+        .st-key-page [role="radio"][aria-checked="true"] {
+            border-bottom-color: #b94a2a;
+            background: transparent !important;
+        }
+        .listing-placeholder {
+            aspect-ratio: 4 / 3; display: flex;
+            align-items: center; justify-content: center; border-radius: 0.7rem;
+            background: #edf3e7; color: #66736c; font-size: 0.8rem; font-weight: 500;
+        }
+        [class*="st-key-listing-"] { padding-block: 0.5rem; }
+        [class*="st-key-listing-"] [data-testid="stImage"] img {
+            width: 100%;
+            aspect-ratio: 4 / 3;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+        .metric-surface {
+            min-width: 0;
+            padding: 0.95rem 1rem;
+            border: 0;
+            border-radius: 6px;
+            background: #edf3e7;
+        }
+        .metric-label { color: #58675f; font-size: 0.78rem; font-weight: 500; }
+        .metric-value {
+            margin-top: 0.3rem;
+            color: #183a2c;
+            font-family: Manrope, Inter, sans-serif;
+            font-size: 1.8rem;
+            font-weight: 650;
+            line-height: 1.15;
+        }
         .leaderboard-card {
             display: flex; align-items: center; gap: 0.85rem; width: 100%;
-            padding: 0.85rem 1rem; margin-bottom: 0.65rem;
-            border: 1px solid #dbe8d5; border-radius: 12px; background: #ffffff;
-            box-shadow: 0 3px 10px rgba(24, 58, 44, 0.06);
+            padding: 0.8rem 0; margin-bottom: 0;
+            border: 0; border-bottom: 1px solid #dbe8d5; background: transparent;
         }
         .leaderboard-card.leader {
-            border-color: #f2c66d;
-            background: linear-gradient(100deg, #fffaf0 0%, #ffffff 70%);
+            border-bottom-color: #dbe8d5;
+            background: transparent;
         }
         .leaderboard-rank {
-            display: flex; align-items: center; justify-content: center;
-            flex: 0 0 2.35rem; height: 2.35rem; border-radius: 10px;
-            background: #edf5e7; color: #28543e; font-size: 0.9rem; font-weight: 800;
+            flex: 0 0 1.5rem;
+            color: #66736c; font-size: 0.85rem; font-weight: 600;
         }
-        .leaderboard-card.leader .leaderboard-rank {background: #fff0c7; color: #8b5b00;}
+        .leaderboard-card.leader .leaderboard-rank {color: #28543e;}
         .leaderboard-person {min-width: 0; flex: 1;}
         .leaderboard-name {font-size: 1rem; font-weight: 750; color: #183a2c;}
         .leaderboard-you {
-            margin-left: 0.4rem; padding: 0.1rem 0.42rem; border-radius: 999px;
-            background: #fff0e7; color: #b44319; font-size: 0.65rem;
-            font-weight: 800; text-transform: uppercase;
+            margin-left: 0.4rem; color: #963d25; font-size: 0.65rem;
+            font-weight: 600; text-transform: uppercase;
         }
         .leaderboard-streak {margin-top: 0.12rem; color: #6a7d73; font-size: 0.78rem;}
         .leaderboard-score {
@@ -88,13 +143,55 @@ def top_bar() -> None:
             display: block; color: #7b8a82; font-size: 0.66rem; font-weight: 700;
             letter-spacing: 0.08em; text-transform: uppercase;
         }
+        .st-key-report-panel {
+            padding: 1.1rem 1.25rem 0.4rem;
+            border: 0;
+            border-radius: 6px;
+            background: #edf3e7;
+        }
+        .st-key-report-panel [data-testid="stVerticalBlock"] { gap: 0.75rem; }
+        .st-key-assessment-panel {
+            padding-top: 1.25rem;
+            border-top: 1px solid #d6e1d1;
+        }
+        [data-testid="stDialog"] [data-testid="stImage"] img {
+            width: 100%;
+            max-height: 320px;
+            object-fit: cover;
+            border-radius: 6px;
+        }
+        @media (max-width: 640px) {
+            .st-key-topbar [data-testid="stHorizontalBlock"] {
+                grid-template-columns: minmax(0, 1fr) auto;
+                gap: 0.75rem 1rem;
+            }
+            .st-key-topbar [data-testid="stColumn"]:nth-child(1) {
+                grid-column: 1;
+                grid-row: 1;
+            }
+            .st-key-topbar [data-testid="stColumn"]:nth-child(2) {
+                grid-column: 1 / -1;
+                grid-row: 2;
+            }
+            .st-key-topbar [data-testid="stColumn"]:nth-child(3) {
+                grid-column: 2;
+                grid-row: 1;
+            }
+            .st-key-page [role="radiogroup"] {
+                justify-content: space-between;
+                gap: 0.5rem;
+            }
+            .metric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+            .metric-value { font-size: 1.5rem; }
+            h1 { font-size: 32px !important; line-height: 1.18 !important; }
+        }
         </style>
         """,
         unsafe_allow_html=True,
     )
-    with st.container(border=True):
-        brand, navigation, identity, refresh = st.columns(
-            [3.2, 4.2, 2, 0.6], vertical_alignment="center"
+    with st.container(key="topbar"):
+        brand, navigation, profile = st.columns(
+            [3.2, 4.2, 2.4], vertical_alignment="center"
         )
         with brand:
             st.markdown('<div class="outlast-brand">Outlast</div>', unsafe_allow_html=True)
@@ -110,23 +207,27 @@ def top_bar() -> None:
                 label_visibility="collapsed",
                 width="stretch",
             )
-        with identity:
-            st.selectbox(
-                "Playing as",
-                PLAYERS,
-                key="current_player",
-                label_visibility="collapsed",
-            )
+        with profile:
             stats = st.session_state.player_stats[st.session_state.current_player]
-            st.caption(f"{stats['xp']} XP · {streak_length(stats['activity_dates'])}-day streak")
-        with refresh:
-            refresh_clicked = st.button(
-                ":material/refresh:",
-                key="refresh-community-data",
-                help="Refresh community data",
-                disabled=not db.available(),
-                use_container_width=True,
-            )
+            with st.popover(
+                st.session_state.current_player,
+                icon=":material/account_circle:",
+                type="tertiary",
+                width="content",
+            ):
+                st.selectbox("Playing as", PLAYERS, key="current_player")
+                st.caption(
+                    f"{stats['xp']} XP · "
+                    f"{streak_length(stats['activity_dates'])}-day streak"
+                )
+                refresh_clicked = st.button(
+                    "Refresh community data",
+                    icon=":material/refresh:",
+                    key="refresh-community-data",
+                    help="Load the latest shared listings and scores",
+                    disabled=not db.available(),
+                    width="stretch",
+                )
         if refresh_clicked:
             try:
                 refresh_from_database()
@@ -144,17 +245,14 @@ def image_source(rescue: dict, after: bool = False) -> bytes | str | None:
 def show_listing_image(rescue: dict, full: bool = False) -> None:
     image = image_source(rescue)
     if image:
-        st.image(image, width="stretch" if full else 145)
+        st.image(image, width="stretch")
     else:
-        st.markdown(
-            '<div class="listing-placeholder">🛠️<span>No photo</span></div>',
-            unsafe_allow_html=True,
-        )
+        st.markdown('<div class="listing-placeholder">No photo</div>', unsafe_allow_html=True)
 
 
 def listing_card(rescue: dict, context: str) -> None:
-    with st.container(border=True):
-        image_col, details_col = st.columns([1, 2], vertical_alignment="center")
+    with st.container(key=f"listing-{context}-{rescue['id']}"):
+        image_col, details_col = st.columns([1.15, 1.85], vertical_alignment="center")
         with image_col:
             show_listing_image(rescue)
         with details_col:
@@ -163,14 +261,14 @@ def listing_card(rescue: dict, context: str) -> None:
                 f"{rescue['difficulty']} repair · "
                 f"{rescue['estimated_waste_kg']:g} kg potential waste avoided"
             )
-            status_icon = (
-                ":material/check_circle:"
-                if rescue["status"] == "Completed"
-                else ":material/pending:"
+            status = (
+                ":green[:material/check_circle: Completed]"
+                if rescue["status"] == RescueStatus.COMPLETED.value
+                else ":orange[:material/pending: Open]"
             )
-            st.caption(f"{status_icon} {rescue['status']} · Posted by {rescue['owner']}")
+            st.markdown(f"{status} · Posted by {rescue['owner']}")
             if st.button(
-                "View item", key=f"view-{context}-{rescue['id']}", use_container_width=True
+                "View item", key=f"view-{context}-{rescue['id']}", width="stretch"
             ):
                 listing_dialog(rescue)
 
@@ -252,14 +350,14 @@ def disposal_guidance_panel(rescue: dict) -> None:
                         "View on OpenStreetMap",
                         point.openstreetmap_url,
                         icon=":material/location_on:",
-                        use_container_width=True,
+                        width="stretch",
                     )
                     if point.official_url:
                         official.link_button(
                             "Programme details",
                             point.official_url,
                             icon=":material/open_in_new:",
-                            use_container_width=True,
+                            width="stretch",
                         )
             st.caption("Location data: NEA via data.gov.sg. Verify before visiting.")
             st.link_button("View the official dataset", DATASET_URL)
@@ -381,12 +479,17 @@ def owner_actions(rescue: dict) -> None:
 
 @st.dialog("Item listing", width="large")
 def listing_dialog(rescue: dict) -> None:
-    show_listing_image(rescue, full=True)
     st.title(rescue["title"])
-    st.caption(f"Posted by {rescue['owner']} · {rescue['status']} · {rescue['difficulty']} repair")
+    status = (
+        ":green[:material/check_circle: Completed]"
+        if rescue["status"] == RescueStatus.COMPLETED.value
+        else ":orange[:material/pending: Open]"
+    )
+    st.markdown(f"{status} · Posted by {rescue['owner']} · {rescue['difficulty']} repair")
     st.write(rescue["description"])
-    st.info(f"AI repair direction: {rescue['next_step']}", icon=":material/auto_awesome:")
+    st.markdown(f"**Repair direction**  \n{rescue['next_step']}")
     st.caption(f"Estimated waste avoided if repaired: {rescue['estimated_waste_kg']:g} kg")
+    show_listing_image(rescue, full=True)
     contributions = rescue.get("contributions", [])
     with st.expander(
         f"Community contributions ({len(contributions)})", expanded=bool(contributions)
@@ -408,13 +511,26 @@ def listing_dialog(rescue: dict) -> None:
 
 def card_grid(rescues: list[dict], context: str, empty_message: str) -> None:
     if not rescues:
-        st.info(empty_message)
+        st.caption(f":material/inbox: {empty_message}")
         return
     for index in range(0, len(rescues), 2):
-        columns = st.columns(2)
+        columns = st.columns(2, gap="medium")
         for column, rescue in zip(columns, rescues[index : index + 2], strict=False):
             with column:
                 listing_card(rescue, context)
+
+
+def metric_grid(metrics: list[tuple[str, str]]) -> None:
+    surfaces = "".join(
+        (
+            '<div class="metric-surface">'
+            f'<div class="metric-label">{escape(label)}</div>'
+            f'<div class="metric-value">{escape(value)}</div>'
+            "</div>"
+        )
+        for label, value in metrics
+    )
+    st.markdown(f'<div class="metric-grid">{surfaces}</div>', unsafe_allow_html=True)
 
 
 def dashboard_page() -> None:
@@ -437,11 +553,14 @@ def dashboard_page() -> None:
     st.title(f"Welcome back, {player}")
     st.caption("Your repair history, real-world impact, and community standing in one place.")
     show_flash()
-    metric_columns = st.columns(4)
-    metric_columns[0].metric("XP", stats["xp"])
-    metric_columns[1].metric("Current streak", f"{streak_length(stats['activity_dates'])} days")
-    metric_columns[2].metric("Items helped", len(completed_positive))
-    metric_columns[3].metric("Waste avoided", f"{waste_avoided:.1f} kg")
+    metric_grid(
+        [
+            ("XP", str(stats["xp"])),
+            ("Current streak", f"{streak_length(stats['activity_dates'])} days"),
+            ("Items helped", str(len(completed_positive))),
+            ("Waste avoided", f"{waste_avoided:.1f} kg"),
+        ]
+    )
 
     st.subheader("Your activity")
     contributed_tab, solved_tab = st.tabs(
@@ -463,7 +582,7 @@ def dashboard_page() -> None:
     user_rank = next(rank for rank, (name, _) in enumerate(leaderboard, start=1) if name == player)
     st.caption(f"You are currently ranked #{user_rank} of {len(leaderboard)} players.")
     for rank, (name, player_stats) in enumerate(leaderboard[:5], start=1):
-        rank_label = {1: "🥇", 2: "🥈", 3: "🥉"}.get(rank, f"#{rank}")
+        rank_label = str(rank)
         current_player_badge = (
             '<span class="leaderboard-you">You</span>' if name == player else ""
         )
@@ -475,7 +594,7 @@ def dashboard_page() -> None:
                 <div class="leaderboard-rank">{rank_label}</div>
                 <div class="leaderboard-person">
                     <div class="leaderboard-name">{escape(name)}{current_player_badge}</div>
-                    <div class="leaderboard-streak">🔥 {streak}-day streak</div>
+                    <div class="leaderboard-streak">{streak}-day streak</div>
                 </div>
                 <div class="leaderboard-score">{player_stats['xp']}<span>XP</span></div>
             </div>
@@ -509,13 +628,13 @@ def listings_page() -> None:
 
 
 def analysis_panel(analysis: RescueAnalysis) -> None:
-    with st.container(border=True):
-        st.caption("Private AI assessment before you post")
+    with st.container(key="assessment-panel"):
+        st.caption("2 · Review assessment · Private until you post")
         st.subheader(analysis.rescue_title)
         details, stats = st.columns([2, 1])
         with details:
             st.write(analysis.reason)
-            st.info(f"Recommended next step: {analysis.suggested_next_step}")
+            st.markdown(f"**Recommended next step**  \n{analysis.suggested_next_step}")
         with stats:
             st.metric("Difficulty", analysis.difficulty.value)
             st.metric("Waste potentially saved", f"{analysis.estimated_waste_kg:g} kg")
@@ -532,14 +651,18 @@ def report_page() -> None:
         if ai_available()
         else "Demo mode: add an OpenAI key for photo analysis."
     )
-    with st.form("analyse-rescue"):
-        image = st.file_uploader("Photo of the item", type=["jpg", "jpeg", "png", "webp"])
-        description = st.text_area(
-            "What happened?", placeholder="My desk fan stopped working yesterday."
-        )
-        generated = st.form_submit_button(
-            "Assess item", type="primary", icon=":material/auto_awesome:"
-        )
+    with st.container(key="report-panel"):
+        st.subheader("1 · Describe it")
+        with st.form("analyse-rescue", border=False):
+            image = st.file_uploader(
+                "Photo of the item", type=["jpg", "jpeg", "png", "webp"]
+            )
+            description = st.text_area(
+                "What happened?", placeholder="My desk fan stopped working yesterday."
+            )
+            generated = st.form_submit_button(
+                "Assess item", type="primary", icon=":material/auto_awesome:"
+            )
     if generated:
         if not description.strip():
             st.warning("Add a short description first.")
@@ -581,7 +704,7 @@ def report_page() -> None:
 initialise_state()
 st.session_state.setdefault("page", "Dashboard")
 top_bar()
-st.divider()
+st.space("small")
 
 if st.session_state.page == "Dashboard":
     dashboard_page()
