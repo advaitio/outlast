@@ -722,7 +722,8 @@ def report_page() -> None:
                 "Photo of the item", type=["jpg", "jpeg", "png", "webp"]
             )
             description = st.text_area(
-                "What happened?", placeholder="My desk fan stopped working yesterday."
+                "What happened?",
+                placeholder="My desk fan hums, but the blades no longer turn.",
             )
             generated = st.form_submit_button(
                 "Assess item", type="primary", icon=":material/auto_awesome:"

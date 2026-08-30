@@ -12,7 +12,7 @@ def seeded_rescues() -> list[dict]:
     rescues = [
         Rescue(
             id="fan-001",
-            title="Bring this desk fan back to life",
+            title="Where Did This Desk Fan’s Spin Go?",
             item_name="Desk fan",
             description="It stopped spinning yesterday and may have a loose cable.",
             owner="Maya",
@@ -32,7 +32,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="chair-002",
-            title="Give a wobbly chair another semester",
+            title="One Loose Leg, One Solid Chair",
             item_name="Wooden chair",
             description="The frame is sound, but one leg keeps loosening.",
             owner="Priya",
@@ -43,7 +43,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="lamp-003",
-            title="Stop this study lamp from flickering",
+            title="Why Does This Study Lamp Flicker?",
             item_name="LED study lamp",
             description="The light flickers after a few minutes even though the plug is secure.",
             owner="Noah",
@@ -54,7 +54,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="keyboard-004",
-            title="Bring these keyboard keys back",
+            title="Keys Worth Bringing Back",
             item_name="Mechanical keyboard",
             description="Several keys no longer register, but the rest of the keyboard works.",
             owner="Sam",
@@ -74,7 +74,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="kettle-005",
-            title="Bring the silent kettle back to life",
+            title="The Case of the Silent Kettle",
             item_name="Electric kettle",
             description="No indicator light; base looks intact.",
             owner="Alex",
@@ -85,7 +85,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="shelf-006",
-            title="Stabilise this small bookshelf",
+            title="Can This Bookshelf Stand Steady?",
             item_name="Small bookshelf",
             description="One shelf bracket is loose and the unit wobbles when books are added.",
             owner="Maya",
@@ -96,7 +96,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="headphones-007",
-            title="Fix the one-sided headphones",
+            title="Can Both Sides Play Again?",
             item_name="Wired headphones",
             description="Audio cuts out on the left when the cable bends.",
             owner="Priya",
@@ -107,7 +107,7 @@ def seeded_rescues() -> list[dict]:
         ),
         Rescue(
             id="toaster-008",
-            title="Give this toaster one safe repair attempt",
+            title="A Safer Look at This Toaster",
             item_name="Two-slice toaster",
             description="Heating element is broken; casing and lever are usable.",
             owner="Noah",

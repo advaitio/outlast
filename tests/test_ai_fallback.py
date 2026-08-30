@@ -55,7 +55,7 @@ def test_photo_is_sent_to_openai_and_structured_result_is_parsed(monkeypatch) ->
                 output_text=(
                     '{"item_name":"Desk fan","pre_post_guidance":"Worth a repair attempt",'
                     '"reason":"A simple fault may be repairable.","difficulty":"Easy",'
-                    '"rescue_title":"Rescue this desk fan",'
+                    '"rescue_title":"Where did this fan’s spin go?",'
                     '"suggested_next_step":"Check the plug.","estimated_waste_kg":1.5}'
                 )
             )
