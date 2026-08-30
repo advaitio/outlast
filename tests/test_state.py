@@ -79,7 +79,7 @@ def test_photos_survive_create_and_completion_flow(monkeypatch: pytest.MonkeyPat
         pre_post_guidance=PrePostGuidance.POST_REPAIR,
         reason="It may have a simple fault.",
         difficulty=Difficulty.EASY,
-        rescue_title="Rescue this desk fan",
+        rescue_title="Where did this fan’s spin go?",
         suggested_next_step="Check the plug.",
         estimated_waste_kg=1.5,
     )
