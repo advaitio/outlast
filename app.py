@@ -775,7 +775,9 @@ def report_page() -> None:
                 st.session_state.analysis_image_bytes = None
                 st.session_state.analysis_image_mime = None
                 st.session_state.flash = "Your repair request is now live in My listings."
-                st.session_state.page = "Listings"
+                # The segmented control owns the `page` key for the rest of this run.
+                # Queue the redirect and apply it before that widget is built on the next run.
+                st.session_state.pending_page = "Listings"
                 st.rerun()
             except db.PersistenceError as exc:
                 st.error(str(exc))
@@ -783,6 +785,8 @@ def report_page() -> None:
 
 initialise_state()
 st.session_state.setdefault("page", "Dashboard")
+if pending_page := st.session_state.pop("pending_page", None):
+    st.session_state.page = pending_page
 top_bar()
 st.space("small")
 
