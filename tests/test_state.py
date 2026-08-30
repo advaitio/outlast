@@ -33,6 +33,7 @@ def test_completion_awards_xp_to_the_original_poster() -> None:
     st.session_state.player_stats = seeded_player_stats()
     st.session_state.current_player = "Maya"
     initial_xp = st.session_state.player_stats["Maya"]["xp"]
+    alex_repairs_before = repairs_helped_by(st.session_state.rescues, "Alex")
 
     completion_award, solver_awards = complete_rescue("fan-001", RescueOutcome.REPAIR, ["Noah"])
 
@@ -44,7 +45,7 @@ def test_completion_awards_xp_to_the_original_poster() -> None:
     assert rescue["completion_xp_award"] == 55
     assert rescue["solver_streak_multipliers"]["Noah"] == 1.25
     assert repairs_helped_by(st.session_state.rescues, "Noah") == [rescue]
-    assert repairs_helped_by(st.session_state.rescues, "Alex") == []
+    assert repairs_helped_by(st.session_state.rescues, "Alex") == alex_repairs_before
 
 
 def test_failed_persistence_does_not_change_session_state(monkeypatch: pytest.MonkeyPatch) -> None:
